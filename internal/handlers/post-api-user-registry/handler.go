@@ -1,4 +1,4 @@
-package post_api_user_registry
+package postapiuserregistry
 
 import (
 	"context"
