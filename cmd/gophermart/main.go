@@ -2,53 +2,56 @@ package main
 
 import (
 	"context"
-	"github.com/CimaCha/gophermart-loyal-service/internal/config"
-	postapiuserregistry "github.com/CimaCha/gophermart-loyal-service/internal/handlers/post-api-user-registry"
-	"github.com/CimaCha/gophermart-loyal-service/internal/logger"
-	"github.com/CimaCha/gophermart-loyal-service/internal/repository"
-	"github.com/CimaCha/gophermart-loyal-service/internal/router"
-	userservice "github.com/CimaCha/gophermart-loyal-service/internal/service/user-service"
-	"go.uber.org/zap"
 	"log"
-	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/CimaCha/gophermart-loyal-service/internal/config"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/app"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/slogger"
 )
 
 func main() {
-	initializedLogger, err := logger.Initialize("debug")
+	sigCtx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+
+	// config
+	cfg, err := config.Load(os.Args[1:])
 	if err != nil {
-		log.Fatal("logger initialization error", err.Error())
+		log.Printf("config load: %v\n", err)
+		return
 	}
-	defer initializedLogger.Sync()
 
-	if err = run(*initializedLogger); err != nil {
-		initializedLogger.Fatal("application stopped", zap.Error(err))
-	}
-}
-
-func run(log zap.Logger) error {
-	ctx := context.Background()
-	cfg, err := config.New()
+	// initialize logger
+	slog, closer, err := slogger.New(cfg.Logger)
 	if err != nil {
-		log.Error("cannot parse config")
-		return err
+		log.Printf("slogger: %v\n", err)
+		return
 	}
 
-	storage, err := repository.NewDatabaseStorage(ctx, cfg.DatabaseURL)
+	defer func() {
+		if err := closer.Close(); err != nil {
+			log.Printf("logger close: %v\n", err)
+		}
+	}()
+
+	// initialize app
+	app, err := app.New(cfg, slog)
 	if err != nil {
-		return err
+		slog.Error(
+			"failed to initialize application",
+			"err", err,
+		)
+		return
 	}
-	defer storage.Close()
 
-	userService := userservice.NewService(storage)
-
-	userRegisterHandler := postapiuserregistry.NewRegisterHandler(*log.With(zap.String("handler", "shorten URL")), userService)
-
-	apiRouter := router.New(log.With(zap.String("layer", "router")), userRegisterHandler)
-
-	err = http.ListenAndServe(cfg.Address, apiRouter)
-	if err != nil {
-		log.Error("HTTP server stopped", zap.Error(err))
-		return err
+	// Run app
+	if err := app.Run(sigCtx); err != nil {
+		slog.Error(
+			"failed to run server",
+			"err", err,
+		)
+		return
 	}
-	return nil
 }
