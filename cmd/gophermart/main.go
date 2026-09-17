@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"github.com/CimaCha/gophermart-loyal-service/internal/config"
-	post_api_user_registry "github.com/CimaCha/gophermart-loyal-service/internal/handlers/post-api-user-registry"
+	postapiuserregistry "github.com/CimaCha/gophermart-loyal-service/internal/handlers/post-api-user-registry"
 	"github.com/CimaCha/gophermart-loyal-service/internal/logger"
 	"github.com/CimaCha/gophermart-loyal-service/internal/repository"
 	"github.com/CimaCha/gophermart-loyal-service/internal/router"
-	user_service "github.com/CimaCha/gophermart-loyal-service/internal/service/user-service"
+	userservice "github.com/CimaCha/gophermart-loyal-service/internal/service/user-service"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
@@ -39,9 +39,9 @@ func run(log zap.Logger) error {
 	}
 	defer storage.Close()
 
-	userService := user_service.NewService(storage)
+	userService := userservice.NewService(storage)
 
-	userRegisterHandler := post_api_user_registry.NewRegisterHandler(*log.With(zap.String("handler", "shorten URL")), userService)
+	userRegisterHandler := postapiuserregistry.NewRegisterHandler(*log.With(zap.String("handler", "shorten URL")), userService)
 
 	apiRouter := router.New(log.With(zap.String("layer", "router")), userRegisterHandler)
 

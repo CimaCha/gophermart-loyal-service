@@ -14,7 +14,7 @@ type Config struct {
 
 func New() (*Config, error) {
 	address := flag.String("a", "localhost:8080", "address of service")
-	databaseURL := flag.String("d", "http://localhost:8080", "url fordatabase")
+	databaseURL := flag.String("d", "http://localhost:8080", "url for database")
 	accrualSystemURL := flag.String("r", "", "path to the storage file")
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, err

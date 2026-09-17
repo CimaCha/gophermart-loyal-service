@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Initialize инициализирует логера с необходимым уровнем логирования.
+// Initialize инициализирует логгер с необходимым уровнем логирования.
 func Initialize(level string) (*zap.Logger, error) {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
@@ -22,7 +22,7 @@ func Initialize(level string) (*zap.Logger, error) {
 	return zl, nil
 }
 
-// RequestLogger — middleware-логер для входящих HTTP-запросов.
+// RequestLogger — middleware-логгер для входящих HTTP-запросов.
 func RequestLogger(log *zap.Logger) func(http.Handler) http.Handler {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
