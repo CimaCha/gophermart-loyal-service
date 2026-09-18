@@ -2,32 +2,80 @@ package config
 
 import (
 	"flag"
+	"fmt"
+
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/db/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/httpserver"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/slogger"
 	"github.com/caarlos0/env/v11"
-	"os"
 )
 
 type Config struct {
-	Address          string `env:"RUN_ADDRESS"`
-	DatabaseURL      string `env:"DATABASE_URI"`
-	AccrualSystemURL string `env:"ACCRUAL_SYSTEM_ADDRESS"`
+	Server *httpserver.Config
+	DB     *postgres.Config
+	Logger *slogger.Config
 }
 
-func New() (*Config, error) {
-	address := flag.String("a", "localhost:8080", "address of service")
-	databaseURL := flag.String("d", "http://localhost:8080", "url for database")
-	accrualSystemURL := flag.String("r", "", "path to the storage file")
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, err
+// для получения config.yaml из флагов или env
+type ConfigLoader struct {
+	Path string `env:"CONFIG_PATH"`
+}
+
+func Load(args []string) (*Config, error) {
+
+	fs := flag.NewFlagSet("config", flag.ContinueOnError)
+
+	serverConfig := httpserver.RegisterFlags(fs)
+	dbConfig := postgres.RegisterFlags(fs)
+	configLoader := RegisterConfigPathFlag(fs)
+
+	// Парсим флаги
+	if err := fs.Parse(args); err != nil {
+		return nil, fmt.Errorf("failed to parse flags: %w", err)
 	}
 
-	config := Config{
-		Address:          *address,
-		DatabaseURL:      *databaseURL,
-		AccrualSystemURL: *accrualSystemURL,
-	}
-	if err := env.Parse(&config); err != nil {
-		return nil, err
+	// Парсим env если есть, то они приоритет
+	if err := configLoader.ParseEnv(); err != nil {
+		return nil, fmt.Errorf("loader config: %w", err)
 	}
 
-	return &config, nil
+	if err := serverConfig.ParseEnv(); err != nil {
+		return nil, fmt.Errorf("server config: %w", err)
+	}
+
+	if err := dbConfig.ParseEnv(); err != nil {
+		return nil, fmt.Errorf("db config: %w", err)
+	}
+
+	logConfig, err := slogger.LoadFromYAML(configLoader.Path)
+	if err != nil {
+		return nil, fmt.Errorf("slogger config: %w", err)
+	}
+
+	return &Config{
+		Server: serverConfig,
+		DB:     dbConfig,
+		Logger: logConfig,
+	}, nil
+
+}
+
+func RegisterConfigPathFlag(fs *flag.FlagSet) *ConfigLoader {
+	cfg := new(ConfigLoader)
+
+	fs.StringVar(
+		&cfg.Path,
+		"config",
+		"config.yaml",
+		"path to config file",
+	)
+
+	return cfg
+}
+
+func (c *ConfigLoader) ParseEnv() error {
+	if err := env.Parse(c); err != nil {
+		return fmt.Errorf("failed to parse env: %w", err)
+	}
+	return nil
 }

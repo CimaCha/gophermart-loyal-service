@@ -1,0 +1,12 @@
+directory: logs
+
+stdout:
+  enabled: true
+  format: text
+  level: info
+
+files:
+  - name: app
+    enabled: true
+    format: json
+    level: debug
