@@ -1,18 +1,14 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-type UserRegisterIn struct {
-	Login    string
-	Password string
-}
-
-type UserLoginIn struct {
-	Login    string
-	Password string
+type Credentials struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
 }
 
 type UserInfo struct {

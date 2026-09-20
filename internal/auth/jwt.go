@@ -15,8 +15,7 @@ func NewJWTBuilder(secretKey []byte) *JWTBuilder {
 	}
 }
 
-// Claims — структура утверждений, которая включает стандартные утверждения
-// и одно пользовательское — UserLogin
+// Claims includes registered JWT claims and the authenticated user ID.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID uuid.UUID `json:"user_id"`

@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"context"
-	"errors"
-	"github.com/google/uuid"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 type contextKey struct{}
+
+//go:generate go tool mockgen -source=auth.go -destination=mock/token_validator_gen.go -package=mock
 
 type TokenValidator interface {
 	ValidateUserID(jwt string) (uuid.UUID, error)
@@ -17,7 +19,7 @@ func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handl
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			jwtCookie, err := request.Cookie("jwt")
-			if errors.Is(err, http.ErrNoCookie) {
+			if err != nil {
 				http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
 			}
@@ -31,4 +33,9 @@ func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handl
 			handler.ServeHTTP(writer, request)
 		})
 	}
+}
+
+func UserID(ctx context.Context) (uuid.UUID, bool) {
+	userID, ok := ctx.Value(contextKey{}).(uuid.UUID)
+	return userID, ok
 }

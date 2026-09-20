@@ -4,13 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/model"
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"log/slog"
-	"net/http"
 )
+
+var errInvalidCredentialsRequest = errors.New("invalid credentials request")
+
+//go:generate go tool mockgen -source=handler.go -destination=mock/user_service_gen.go -package=mock
 
 type UserService interface {
 	CreateUser(ctx context.Context, userLogin string, password string) (string, error)
@@ -40,68 +46,74 @@ func (h *Handler) RegisterPublicAPI(r chi.Router) {
 }
 
 func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request) {
-	userLoginInfo := model.UserRegisterIn{}
-	decoder := json.NewDecoder(request.Body)
-	err := decoder.Decode(&userLoginInfo)
+	credentials, err := decodeCredentials(request.Body)
 	if err != nil {
-		h.logger.Error(err.Error())
-		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-	if userLoginInfo.Login == "" || userLoginInfo.Password == "" {
-		h.logger.Error(err.Error())
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	jwtToken, err := h.service.CreateUser(request.Context(), userLoginInfo.Login, userLoginInfo.Password)
+
+	jwtToken, err := h.service.CreateUser(request.Context(), credentials.Login, credentials.Password)
 	if err != nil {
-		if errors.Is(err, service.ErrUserAlreadyExists) {
-			h.logger.Error(err.Error())
-			http.Error(writer, http.StatusText(http.StatusConflict), http.StatusConflict)
-			return
-		}
-		if errors.Is(err, service.ErrInvalidCredentials) {
-			h.logger.Error(err.Error())
-			http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-		h.logger.Error(err.Error())
-		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		h.writeServiceError(writer, err)
 		return
 	}
-	h.setAuthCookie(writer, *request, jwtToken)
+	h.setAuthCookie(writer, request, jwtToken)
 
 	writer.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
-	userLoginInfo := model.UserLoginIn{}
-	decoder := json.NewDecoder(request.Body)
-	err := decoder.Decode(&userLoginInfo)
+	credentials, err := decodeCredentials(request.Body)
 	if err != nil {
-		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	jwtToken, err := h.service.LoginUser(request.Context(), userLoginInfo.Login, userLoginInfo.Password)
+
+	jwtToken, err := h.service.LoginUser(request.Context(), credentials.Login, credentials.Password)
 	if err != nil {
-		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		h.writeServiceError(writer, err)
 		return
 	}
-	h.setAuthCookie(writer, *request, jwtToken)
+	h.setAuthCookie(writer, request, jwtToken)
 
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (h *Handler) setAuthCookie(w http.ResponseWriter, r http.Request, token string) {
+func decodeCredentials(r io.Reader) (model.Credentials, error) {
+	var credentials model.Credentials
+	decoder := json.NewDecoder(r)
+	if err := decoder.Decode(&credentials); err != nil {
+		return model.Credentials{}, err
+	}
+	if credentials.Login == "" || credentials.Password == "" {
+		return model.Credentials{}, errInvalidCredentialsRequest
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return model.Credentials{}, errInvalidCredentialsRequest
+	}
+	return credentials, nil
+}
 
-	cookie := &http.Cookie{
+func (h *Handler) writeServiceError(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	switch {
+	case errors.Is(err, service.ErrUserAlreadyExists):
+		status = http.StatusConflict
+	case errors.Is(err, service.ErrInvalidCredentials):
+		status = http.StatusUnauthorized
+	default:
+		h.logger.Error("user request failed", "err", err)
+	}
+	http.Error(w, http.StatusText(status), status)
+}
+
+func (h *Handler) setAuthCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
 		Name:     "jwt",
 		Path:     "/api/user",
 		Value:    token,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Secure:   r.TLS != nil,
-	}
-
-	http.SetCookie(w, cookie)
+	})
 }
