@@ -1,10 +1,18 @@
 package authentication
 
-import "github.com/golang-jwt/jwt/v4"
+import (
+	"errors"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
+	"time"
+)
 
-type UserLoginParser interface {
-	GetUserID(tokenString string) (string, error)
-}
+var (
+	ErrTokenIsInvalid    = errors.New("token is not valid")
+	ErrNoUserLoginExists = errors.New("user login is not exists in token claims")
+	ErrExpiredToken      = errors.New("token is expired")
+	ErrInvalidToken      = errors.New("token is invalid")
+)
 
 type Parser struct {
 	SecretKey []byte
@@ -16,7 +24,7 @@ func NewUserIDParser(secretKey []byte) *Parser {
 	}
 }
 
-func (p Parser) GetUserID(tokenString string) (string, error) {
+func (p Parser) ValidateUserID(tokenString string) (uuid.UUID, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims,
 		func(t *jwt.Token) (interface{}, error) {
@@ -25,11 +33,23 @@ func (p Parser) GetUserID(tokenString string) (string, error) {
 			}
 			return p.SecretKey, nil
 		})
-	if err != nil || token == nil || !token.Valid {
-		return "", ErrTokenIsInvalid
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return uuid.UUID{}, ErrExpiredToken
+		}
+		return uuid.UUID{}, ErrInvalidToken
 	}
-	if claims.UserLogin == "" {
-		return "", ErrNoUserLoginExists
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return uuid.UUID{}, ErrInvalidToken
 	}
-	return claims.UserLogin, nil
+
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
+		return uuid.UUID{}, ErrExpiredToken
+	}
+	if claims.UserID == uuid.Nil {
+		return uuid.UUID{}, ErrNoUserLoginExists
+	}
+	return claims.UserID, nil
 }

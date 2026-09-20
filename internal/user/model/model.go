@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type UserRegisterIn struct {
 	Login    string
@@ -13,8 +16,8 @@ type UserLoginIn struct {
 }
 
 type UserInfo struct {
-	UUID      string
-	Login     string
-	Password  string
-	CreatedAt time.Time
+	UUID         uuid.UUID
+	Login        string
+	PasswordHash string
+	CreatedAt    time.Time
 }

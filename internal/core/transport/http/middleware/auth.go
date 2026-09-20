@@ -1,15 +1,19 @@
-package authentication
+package middleware
 
 import (
 	"context"
 	"errors"
-	"log/slog"
+	"github.com/google/uuid"
 	"net/http"
 )
 
 type contextKey struct{}
 
-func AuthMiddleware(log *slog.Logger, userLoginParser UserLoginParser) func(http.Handler) http.Handler {
+type TokenValidator interface {
+	ValidateUserID(jwt string) (uuid.UUID, error)
+}
+
+func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handler {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			jwtCookie, err := request.Cookie("jwt")
@@ -18,7 +22,7 @@ func AuthMiddleware(log *slog.Logger, userLoginParser UserLoginParser) func(http
 				return
 			}
 
-			userID, err := userLoginParser.GetUserID(jwtCookie.Value)
+			userID, err := tokenValidator.ValidateUserID(jwtCookie.Value)
 			if err != nil {
 				http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return

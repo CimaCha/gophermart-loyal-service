@@ -3,32 +3,29 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	authentication "github.com/CimaCha/gophermart-loyal-service/internal/auth"
+	"errors"
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/user/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
 	"net/http"
 )
 
-type contextKey struct{}
-
 type UserService interface {
-	CreateUser(userLogin string, password string) error
-	LoginUser(userLogin string, password string) error
+	CreateUser(ctx context.Context, userLogin string, password string) (string, error)
+	LoginUser(ctx context.Context, userLogin string, password string) (string, error)
 }
 
 type Handler struct {
-	logger     slog.Logger
-	service    UserService
-	jwtBuilder authentication.JWTBuilder
+	logger  slog.Logger
+	service UserService
 }
 
-func New(logger slog.Logger, userService UserService, jwtBuilder authentication.JWTBuilder) *Handler {
+func New(logger slog.Logger, userService UserService) *Handler {
 	return &Handler{
-		logger:     logger,
-		service:    userService,
-		jwtBuilder: jwtBuilder,
+		logger:  logger,
+		service: userService,
 	}
 }
 
@@ -47,19 +44,33 @@ func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request
 	decoder := json.NewDecoder(request.Body)
 	err := decoder.Decode(&userLoginInfo)
 	if err != nil {
+		h.logger.Error(err.Error())
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	err = h.service.CreateUser(userLoginInfo.Login, userLoginInfo.Password)
+	if userLoginInfo.Login == "" || userLoginInfo.Password == "" {
+		h.logger.Error(err.Error())
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	jwtToken, err := h.service.CreateUser(request.Context(), userLoginInfo.Login, userLoginInfo.Password)
 	if err != nil {
+		if errors.Is(err, service.ErrUserAlreadyExists) {
+			h.logger.Error(err.Error())
+			http.Error(writer, http.StatusText(http.StatusConflict), http.StatusConflict)
+			return
+		}
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			h.logger.Error(err.Error())
+			http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+		h.logger.Error(err.Error())
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	writer, request, err = h.setUserLoginCookie(userLoginInfo.Login, &writer, request)
-	if err != nil {
-		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	h.setAuthCookie(writer, *request, jwtToken)
+
 	writer.WriteHeader(http.StatusOK)
 }
 
@@ -71,45 +82,26 @@ func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	err = h.service.LoginUser(userLoginInfo.Login, userLoginInfo.Password)
+	jwtToken, err := h.service.LoginUser(request.Context(), userLoginInfo.Login, userLoginInfo.Password)
 	if err != nil {
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	writer, request, err = h.setUserLoginCookie(userLoginInfo.Login, &writer, request)
-	if err != nil {
-		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	h.setAuthCookie(writer, *request, jwtToken)
+
 	writer.WriteHeader(http.StatusOK)
 }
 
-func getUserLogin(ctx context.Context) string {
-	id, _ := ctx.Value(contextKey{}).(string)
-	return id
-}
-
-// UserLogin returns the authenticated user login, or an empty string if absent.
-func UserLogin(ctx context.Context) string {
-	return getUserLogin(ctx)
-}
-
-func (h *Handler) setUserLoginCookie(userLogin string, writer *http.ResponseWriter, request *http.Request) (http.ResponseWriter, *http.Request, error) {
-	jwtString, err := h.jwtBuilder.BuildJWTString(userLogin)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	request = request.WithContext(context.WithValue(request.Context(), contextKey{}, userLogin))
+func (h *Handler) setAuthCookie(w http.ResponseWriter, r http.Request, token string) {
 
 	cookie := &http.Cookie{
 		Name:     "jwt",
-		Value:    jwtString,
+		Path:     "/api/user",
+		Value:    token,
 		HttpOnly: true,
-		Secure:   request.TLS != nil,
 		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil,
 	}
 
-	http.SetCookie(*writer, cookie)
-	return *writer, request, nil
+	http.SetCookie(w, cookie)
 }
