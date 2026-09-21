@@ -1,12 +1,14 @@
 package middleware
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	authentication "github.com/CimaCha/gophermart-loyal-service/internal/core/auth"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/ctxkeys"
 	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/http/middleware/mock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -15,7 +17,7 @@ import (
 
 func TestAuthMiddleware(t *testing.T) {
 	userID := uuid.New()
-	errInvalid := errors.New("invalid token")
+	errUnavailable := errors.New("validator unavailable")
 	tests := []struct {
 		name           string
 		cookie         *http.Cookie
@@ -25,7 +27,10 @@ func TestAuthMiddleware(t *testing.T) {
 		wantDownstream bool
 	}{
 		{name: "missing cookie", wantStatus: http.StatusUnauthorized},
-		{name: "invalid token", cookie: &http.Cookie{Name: "jwt", Value: "invalid"}, validatorErr: errInvalid, wantStatus: http.StatusUnauthorized, wantValidated: true},
+		{name: "expired token", cookie: &http.Cookie{Name: "jwt", Value: "expired"}, validatorErr: fmt.Errorf("parse token: %w", authentication.ErrExpiredToken), wantStatus: http.StatusUnauthorized, wantValidated: true},
+		{name: "invalid token", cookie: &http.Cookie{Name: "jwt", Value: "invalid"}, validatorErr: fmt.Errorf("parse token: %w", authentication.ErrInvalidToken), wantStatus: http.StatusUnauthorized, wantValidated: true},
+		{name: "missing user id", cookie: &http.Cookie{Name: "jwt", Value: "missing-user-id"}, validatorErr: fmt.Errorf("parse token: %w", authentication.ErrMissingUserID), wantStatus: http.StatusUnauthorized, wantValidated: true},
+		{name: "unexpected validator error", cookie: &http.Cookie{Name: "jwt", Value: "unavailable"}, validatorErr: errUnavailable, wantStatus: http.StatusInternalServerError, wantValidated: true},
 		{name: "valid token", cookie: &http.Cookie{Name: "jwt", Value: "signed-token"}, wantStatus: http.StatusNoContent, wantValidated: true, wantDownstream: true},
 	}
 
@@ -41,8 +46,8 @@ func TestAuthMiddleware(t *testing.T) {
 			middleware := AuthMiddleware(validator)
 			handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downstream = true
-				gotID, ok := UserID(r.Context())
-				require.True(t, ok)
+				gotID, err := ctxkeys.GetUserID(r.Context())
+				require.NoError(t, err)
 				require.Equal(t, userID, gotID)
 				w.WriteHeader(http.StatusNoContent)
 			}))
@@ -56,27 +61,6 @@ func TestAuthMiddleware(t *testing.T) {
 
 			require.Equal(t, tt.wantStatus, recorder.Code)
 			require.Equal(t, tt.wantDownstream, downstream)
-		})
-	}
-}
-
-func TestUserID(t *testing.T) {
-	userID := uuid.New()
-	tests := []struct {
-		name   string
-		ctx    context.Context
-		wantID uuid.UUID
-		wantOK bool
-	}{
-		{name: "missing", ctx: context.Background(), wantID: uuid.Nil},
-		{name: "present", ctx: context.WithValue(context.Background(), contextKey{}, userID), wantID: userID, wantOK: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotID, ok := UserID(tt.ctx)
-			require.Equal(t, tt.wantID, gotID)
-			require.Equal(t, tt.wantOK, ok)
 		})
 	}
 }

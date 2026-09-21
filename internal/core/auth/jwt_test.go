@@ -22,11 +22,9 @@ func TestParser_ValidateUserID(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "builder parser round trip",
+			name: "valid token",
 			token: func() string {
-				token, err := NewJWTBuilder(secret).BuildJWTString(userID)
-				require.NoError(t, err)
-				return token
+				return signClaims(t, jwt.SigningMethodHS256, secret, Claims{UserID: userID})
 			},
 			secret: secret,
 			wantID: userID,
@@ -34,9 +32,7 @@ func TestParser_ValidateUserID(t *testing.T) {
 		{
 			name: "wrong secret",
 			token: func() string {
-				token, err := NewJWTBuilder(secret).BuildJWTString(userID)
-				require.NoError(t, err)
-				return token
+				return signClaims(t, jwt.SigningMethodHS256, secret, Claims{UserID: userID})
 			},
 			secret:  []byte("wrong-secret"),
 			wantErr: ErrInvalidToken,
@@ -44,9 +40,7 @@ func TestParser_ValidateUserID(t *testing.T) {
 		{
 			name: "tampered signature",
 			token: func() string {
-				token, err := NewJWTBuilder(secret).BuildJWTString(userID)
-				require.NoError(t, err)
-				return token + "x"
+				return signClaims(t, jwt.SigningMethodHS256, secret, Claims{UserID: userID}) + "x"
 			},
 			secret:  secret,
 			wantErr: ErrInvalidToken,

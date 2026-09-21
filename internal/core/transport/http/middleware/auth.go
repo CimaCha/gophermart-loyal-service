@@ -1,13 +1,13 @@
 package middleware
 
 import (
-	"context"
+	"errors"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/ctxkeys"
 	"net/http"
 
+	authentication "github.com/CimaCha/gophermart-loyal-service/internal/core/auth"
 	"github.com/google/uuid"
 )
-
-type contextKey struct{}
 
 //go:generate go tool mockgen -source=auth.go -destination=mock/token_validator_gen.go -package=mock
 
@@ -26,16 +26,18 @@ func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handl
 
 			userID, err := tokenValidator.ValidateUserID(jwtCookie.Value)
 			if err != nil {
-				http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				switch {
+				case errors.Is(err, authentication.ErrExpiredToken),
+					errors.Is(err, authentication.ErrInvalidToken),
+					errors.Is(err, authentication.ErrMissingUserID):
+					http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				default:
+					http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				}
 				return
 			}
-			request = request.WithContext(context.WithValue(request.Context(), contextKey{}, userID))
+			request = request.WithContext(ctxkeys.WithUserID(request.Context(), userID))
 			handler.ServeHTTP(writer, request)
 		})
 	}
-}
-
-func UserID(ctx context.Context) (uuid.UUID, bool) {
-	userID, ok := ctx.Value(contextKey{}).(uuid.UUID)
-	return userID, ok
 }
