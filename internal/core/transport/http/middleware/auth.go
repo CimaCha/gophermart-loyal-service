@@ -1,0 +1,43 @@
+package middleware
+
+import (
+	"errors"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/ctxkeys"
+	"net/http"
+
+	authentication "github.com/CimaCha/gophermart-loyal-service/internal/core/auth"
+	"github.com/google/uuid"
+)
+
+//go:generate go tool mockgen -source=auth.go -destination=mock/token_validator_gen.go -package=mock
+
+type TokenValidator interface {
+	ValidateUserID(jwt string) (uuid.UUID, error)
+}
+
+func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handler {
+	return func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			jwtCookie, err := request.Cookie("jwt")
+			if err != nil {
+				http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+
+			userID, err := tokenValidator.ValidateUserID(jwtCookie.Value)
+			if err != nil {
+				switch {
+				case errors.Is(err, authentication.ErrExpiredToken),
+					errors.Is(err, authentication.ErrInvalidToken),
+					errors.Is(err, authentication.ErrMissingUserID):
+					http.Error(writer, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				default:
+					http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				}
+				return
+			}
+			request = request.WithContext(ctxkeys.WithUserID(request.Context(), userID))
+			handler.ServeHTTP(writer, request)
+		})
+	}
+}
