@@ -13,6 +13,8 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+type testStruct struct{}
+
 func TestUserService_CreateUser(t *testing.T) {
 	errHash := errors.New("hash failed")
 	errToken := errors.New("token failed")
@@ -35,7 +37,7 @@ func TestUserService_CreateUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.WithValue(context.Background(), struct{}{}, "request")
+			ctx := context.WithValue(context.Background(), testStruct{}, "request")
 			ctrl := gomock.NewController(t)
 			storageMock := mock.NewMockUserStorage(ctrl)
 			tokenBuilderMock := mock.NewMockTokenBuilder(ctrl)
@@ -111,7 +113,7 @@ func TestUserService_LoginUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.WithValue(context.Background(), struct{}{}, "request")
+			ctx := context.WithValue(context.Background(), testStruct{}, "request")
 			ctrl := gomock.NewController(t)
 			storageMock := mock.NewMockUserStorage(ctrl)
 			tokenBuilderMock := mock.NewMockTokenBuilder(ctrl)
