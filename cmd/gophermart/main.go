@@ -9,7 +9,7 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/core/app"
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/slogger"
+	"github.com/CimaCha/gophermart-loyal-service/internal/slogger"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 	}()
 
 	// initialize app
-	app, err := app.New(cfg, slog)
+	app, err := app.New(sigCtx, cfg, slog)
 	if err != nil {
 		slog.Error(
 			"failed to initialize application",

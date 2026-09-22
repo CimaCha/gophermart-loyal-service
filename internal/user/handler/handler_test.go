@@ -46,7 +46,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			} else {
 				serviceMock.EXPECT().CreateUser(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			}
-			h := New(*slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
+			h := New(slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/user/register", strings.NewReader(tt.body))
 			if tt.requestTLS {
@@ -98,7 +98,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			} else {
 				serviceMock.EXPECT().LoginUser(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			}
-			h := New(*slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
+			h := New(slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
 
 			recorder := httptest.NewRecorder()
 			h.LoginUser(recorder, httptest.NewRequest(http.MethodPost, "/api/user/login", strings.NewReader(tt.body)))

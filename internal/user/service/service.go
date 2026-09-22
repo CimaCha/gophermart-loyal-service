@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/model"
-	"github.com/CimaCha/gophermart-loyal-service/internal/user/storage"
+	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/user/repository"
 	"github.com/google/uuid"
 )
 
@@ -27,15 +27,20 @@ type PasswordHasher interface {
 	Compare(password, hash string) (bool, error)
 }
 
+type UserRepository interface {
+	FindUserInfo(ctx context.Context, userLogin string) (model.UserInfo, error)
+	SaveUserInfo(ctx context.Context, userInfo model.UserInfo) error
+}
+
 type UserService struct {
-	storage        storage.UserStorage
+	repo           UserRepository
 	tokenBuilder   TokenBuilder
 	passwordHasher PasswordHasher
 }
 
-func NewUserService(userStorage storage.UserStorage, tokenBuilder TokenBuilder, passwordHasher PasswordHasher) *UserService {
+func New(userRepo UserRepository, tokenBuilder TokenBuilder, passwordHasher PasswordHasher) *UserService {
 	return &UserService{
-		storage:        userStorage,
+		repo:           userRepo,
 		tokenBuilder:   tokenBuilder,
 		passwordHasher: passwordHasher,
 	}
@@ -55,14 +60,14 @@ func (s *UserService) CreateUser(ctx context.Context, userLogin string, password
 	if err != nil {
 		return "", fmt.Errorf("build token: %w", err)
 	}
-	err = s.storage.SaveUserInfo(ctx, model.UserInfo{
+	err = s.repo.SaveUserInfo(ctx, model.UserInfo{
 		UUID:         userID,
 		Login:        userLogin,
 		PasswordHash: passwordHash,
 		CreatedAt:    time.Now(),
 	})
 	if err != nil {
-		if errors.Is(err, storage.ErrUserAlreadyExists) {
+		if errors.Is(err, userrepo.ErrUserAlreadyExists) {
 			return "", ErrUserAlreadyExists
 		}
 		return "", fmt.Errorf("save user: %w", err)
@@ -72,9 +77,9 @@ func (s *UserService) CreateUser(ctx context.Context, userLogin string, password
 }
 
 func (s *UserService) LoginUser(ctx context.Context, userLogin string, password string) (string, error) {
-	userInfo, err := s.storage.FindUserInfo(ctx, userLogin)
+	userInfo, err := s.repo.FindUserInfo(ctx, userLogin)
 	if err != nil {
-		if errors.Is(err, storage.ErrUserNotFound) {
+		if errors.Is(err, userrepo.ErrUserNotFound) {
 			return "", ErrInvalidCredentials
 		}
 		return "", fmt.Errorf("find user: %w", err)

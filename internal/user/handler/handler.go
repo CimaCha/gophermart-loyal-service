@@ -10,8 +10,6 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/model"
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/service"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 var errInvalidCredentialsRequest = errors.New("invalid credentials request")
@@ -24,25 +22,15 @@ type UserService interface {
 }
 
 type Handler struct {
-	logger  slog.Logger
+	logger  *slog.Logger
 	service UserService
 }
 
-func New(logger slog.Logger, userService UserService) *Handler {
+func New(logger *slog.Logger, userService UserService) *Handler {
 	return &Handler{
 		logger:  logger,
 		service: userService,
 	}
-}
-
-// Публичные т.к. не требуют Auth middleware на них
-// Вход в аккаунт - процесс аунтетификации
-
-func (h *Handler) RegisterPublicAPI(r chi.Router) {
-	r.With(middleware.AllowContentType("application/json")).
-		Post("/api/user/register", h.RegisterUser)
-	r.With(middleware.AllowContentType("application/json")).
-		Post("/api/user/login", h.LoginUser)
 }
 
 func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request) {

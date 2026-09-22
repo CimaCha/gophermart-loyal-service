@@ -4,9 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/db/postgres"
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/httpserver"
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/slogger"
+	"github.com/CimaCha/gophermart-loyal-service/internal/db/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/internal/httpserver"
+	"github.com/CimaCha/gophermart-loyal-service/internal/ratelimit"
+	"github.com/CimaCha/gophermart-loyal-service/internal/slogger"
 	"github.com/caarlos0/env/v11"
 )
 
@@ -14,6 +15,7 @@ type Config struct {
 	Server *httpserver.Config
 	DB     *postgres.Config
 	Logger *slogger.Config
+	RLS    *ratelimit.Config
 }
 
 // для получения config.yaml из флагов или env
@@ -52,10 +54,16 @@ func Load(args []string) (*Config, error) {
 		return nil, fmt.Errorf("slogger config: %w", err)
 	}
 
+	rateLimitStorage, err := ratelimit.LoadFromYAML(configLoader.Path)
+	if err != nil {
+		return nil, fmt.Errorf("rate limit config: %w", err)
+	}
+
 	return &Config{
 		Server: serverConfig,
 		DB:     dbConfig,
 		Logger: logConfig,
+		RLS:    rateLimitStorage,
 	}, nil
 
 }

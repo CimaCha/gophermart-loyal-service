@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"errors"
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/ctxkeys"
 	"net/http"
 
-	authentication "github.com/CimaCha/gophermart-loyal-service/internal/core/auth"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/ctxkeys"
+
+	authentication "github.com/CimaCha/gophermart-loyal-service/internal/auth"
 	"github.com/google/uuid"
 )
 
