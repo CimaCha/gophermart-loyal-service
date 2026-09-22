@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/http/ctxkeys"
 	"github.com/CimaCha/gophermart-loyal-service/internal/order/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/order/service"
-	"github.com/go-chi/chi/v5"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/http/ctxkeys"
 	"github.com/shopspring/decimal"
 )
 
@@ -29,8 +28,8 @@ type Handler struct {
 }
 
 func New(
-	service OrderService,
 	log *slog.Logger,
+	service OrderService,
 ) *Handler {
 	return &Handler{
 		l:   log,
@@ -46,11 +45,6 @@ type OrderResponse struct {
 }
 
 const maxBodySize = 32
-
-func (h *Handler) RegisterPrivateAPI(r chi.Router) {
-	r.Post("/api/user/orders", h.CreateOrder)
-	r.Get("/api/user/orders", h.GetOrders)
-}
 
 func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	uidStr, err := ctxkeys.GetUserID(r.Context())

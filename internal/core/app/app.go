@@ -5,13 +5,24 @@ import (
 	"fmt"
 	"log/slog"
 
+	authentication "github.com/CimaCha/gophermart-loyal-service/internal/auth"
 	"github.com/CimaCha/gophermart-loyal-service/internal/config"
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/db/postgres"
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/httpserver"
+	"github.com/CimaCha/gophermart-loyal-service/internal/core/deps"
+	"github.com/CimaCha/gophermart-loyal-service/internal/db/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/internal/httpserver"
 	orderh "github.com/CimaCha/gophermart-loyal-service/internal/order/handler"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/order/repository"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/order/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/ratelimit"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/http/middleware"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/http/router"
+	userh "github.com/CimaCha/gophermart-loyal-service/internal/user/handler"
+	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/user/repository"
+	usersvc "github.com/CimaCha/gophermart-loyal-service/internal/user/service"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
+
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,7 +31,7 @@ type App struct {
 	Pgxpool *pgxpool.Pool
 }
 
-func New(cfg *config.Config, log *slog.Logger) (*App, error) {
+func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	// Root router
 	rootRouter := chi.NewRouter()
@@ -33,25 +44,36 @@ func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
 
-	// Потом убрать в .env
+	limiter := ratelimit.NewRLS(ctx, cfg.RLS, log)
+	tokenBuilder := authentication.NewJWTBuilder([]byte("temp-secret-key"))
+	tokenValidator := authentication.NewUserIDParser([]byte("temp-secret-key"))
+	passHasher := new(passhasher.Argon2Hasher)
 
-	// userRepo
+	userRepo := userrepo.New(pool)
 	orderRepo := orderrepo.New(pool)
 	// balanceRepo
 
-	// userService
+	userSvc := usersvc.New(userRepo, tokenBuilder, passHasher)
 	orderSvc := ordersvc.New(orderRepo, log)
 	// balanceService
 
-	// userHandler
-	orderHandler := orderh.New(orderSvc, log)
+	userHandler := userh.New(log, userSvc)
+	orderHandler := orderh.New(log, orderSvc)
 	// balanceHandler
 
-	// Регаем приватные маршруты для order handler
-	rootRouter.Group(func(r chi.Router) {
+	dependencies := deps.New(
+		userHandler,
+		orderHandler,
+		tokenValidator,
+		limiter,
+		cfg,
+		log,
+	)
 
-		orderHandler.RegisterPrivateAPI(r)
-	})
+	rootRouter.Use(chimiddleware.Recoverer, middleware.RequestID(), middleware.Logging(log))
+
+	// Регистрируем все маршруты здесь
+	router.SetupRoutes(rootRouter, dependencies)
 
 	return &App{
 		Server:  httpServer,

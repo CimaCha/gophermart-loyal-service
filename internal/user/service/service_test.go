@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/model"
+	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/user/repository"
 	"github.com/CimaCha/gophermart-loyal-service/internal/user/service/mock"
-	"github.com/CimaCha/gophermart-loyal-service/internal/user/storage"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -18,20 +18,20 @@ type testStruct struct{}
 func TestUserService_CreateUser(t *testing.T) {
 	errHash := errors.New("hash failed")
 	errToken := errors.New("token failed")
-	errStorage := errors.New("storage failed")
+	errRepository := errors.New("storage failed")
 
 	tests := []struct {
-		name       string
-		hashErr    error
-		tokenErr   error
-		storageErr error
-		wantErr    error
-		wantToken  string
+		name      string
+		hashErr   error
+		tokenErr  error
+		repoErr   error
+		wantErr   error
+		wantToken string
 	}{
 		{name: "hash error", hashErr: errHash, wantErr: errHash},
 		{name: "token error", tokenErr: errToken, wantErr: errToken},
-		{name: "duplicate user", storageErr: storage.ErrUserAlreadyExists, wantErr: ErrUserAlreadyExists},
-		{name: "storage error", storageErr: errStorage, wantErr: errStorage},
+		{name: "duplicate user", repoErr: userrepo.ErrUserAlreadyExists, wantErr: ErrUserAlreadyExists},
+		{name: "storage error", repoErr: errRepository, wantErr: errRepository},
 		{name: "success", wantToken: "signed-token"},
 	}
 
@@ -64,12 +64,12 @@ func TestUserService_CreateUser(t *testing.T) {
 						require.Equal(t, "encoded-hash", user.PasswordHash)
 						require.NotEqual(t, "secret", user.PasswordHash)
 						require.False(t, user.CreatedAt.IsZero())
-						return tt.storageErr
+						return tt.repoErr
 					}))
 			}
 			gomock.InOrder(calls...)
 
-			svc := NewUserService(
+			svc := New(
 				storageMock,
 				tokenBuilderMock,
 				passwordHasherMock,
@@ -103,7 +103,7 @@ func TestUserService_LoginUser(t *testing.T) {
 		wantErr    error
 		wantToken  string
 	}{
-		{name: "user not found", findErr: storage.ErrUserNotFound, wantErr: ErrInvalidCredentials},
+		{name: "user not found", findErr: userrepo.ErrUserNotFound, wantErr: ErrInvalidCredentials},
 		{name: "storage error", findErr: errFind, wantErr: errFind},
 		{name: "compare error", compareErr: errCompare, wantErr: errCompare},
 		{name: "password mismatch", wantErr: ErrInvalidCredentials},
@@ -139,7 +139,7 @@ func TestUserService_LoginUser(t *testing.T) {
 			}
 			gomock.InOrder(calls...)
 
-			svc := NewUserService(
+			svc := New(
 				storageMock,
 				tokenBuilderMock,
 				passwordHasherMock,

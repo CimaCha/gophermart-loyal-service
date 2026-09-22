@@ -1,4 +1,4 @@
-package service
+package passhasher
 
 import "github.com/alexedwards/argon2id"
 

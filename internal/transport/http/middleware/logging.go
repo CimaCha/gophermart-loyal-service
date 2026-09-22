@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	httpresponse "github.com/CimaCha/gophermart-loyal-service/internal/core/transport/http/response"
+	httpresponse "github.com/CimaCha/gophermart-loyal-service/internal/transport/http/response"
 )
 
 func Logging(log *slog.Logger) Middleware {

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/core/transport/http/ctxkeys"
 	"github.com/CimaCha/gophermart-loyal-service/internal/order/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/order/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/http/ctxkeys"
 	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,7 @@ func newTestHandler(t *testing.T) (*Handler, *MockOrderService) {
 		slog.NewTextHandler(io.Discard, nil),
 	)
 
-	return New(svc, logger), svc
+	return New(logger, svc), svc
 }
 
 // CreateOrder
