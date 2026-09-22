@@ -39,12 +39,7 @@ func New(
 	}
 }
 
-func (s *OrderService) GetOrders(ctx context.Context, uidStr string) ([]model.Order, error) {
-
-	uid, err := uuid.Parse(uidStr)
-	if err != nil {
-		return nil, fmt.Errorf("uuid parse: %w", err)
-	}
+func (s *OrderService) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
 
 	result, err := s.repo.GetOrders(ctx, uid)
 	if err != nil {
@@ -54,16 +49,11 @@ func (s *OrderService) GetOrders(ctx context.Context, uidStr string) ([]model.Or
 	return result, nil
 }
 
-func (s *OrderService) UploadOrder(ctx context.Context, orderNumStr, uidStr string) error {
+func (s *OrderService) UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error {
 
 	orderNum, err := strconv.ParseInt(orderNumStr, 10, 64)
 	if err != nil {
 		return ErrInvalidOrderNum
-	}
-
-	uid, err := uuid.Parse(uidStr)
-	if err != nil {
-		return fmt.Errorf("uuid parse: %w", err)
 	}
 
 	order, err := model.NewOrder(orderNum, uid).Validate()

@@ -13,13 +13,14 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/order/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/order/service"
-	"github.com/CimaCha/gophermart-loyal-service/internal/transport/http/ctxkeys"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/ctxkeys"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
 type OrderService interface {
-	UploadOrder(ctx context.Context, orderNumStr, uidStr string) error
-	GetOrders(ctx context.Context, uidStr string) ([]model.Order, error)
+	UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error
+	GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error)
 }
 
 type Handler struct {
@@ -47,7 +48,7 @@ type OrderResponse struct {
 const maxBodySize = 32
 
 func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
-	uidStr, err := ctxkeys.GetUserID(r.Context())
+	uid, err := ctxkeys.GetUserID(r.Context())
 	if err != nil {
 		h.l.Error(
 			"failed to get user ID from context",
@@ -61,7 +62,7 @@ func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := h.svc.GetOrders(r.Context(), uidStr)
+	orders, err := h.svc.GetOrders(r.Context(), uid)
 	if err != nil {
 		switch {
 		case errors.Is(err, context.Canceled):
