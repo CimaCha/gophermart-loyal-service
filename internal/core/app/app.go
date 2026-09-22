@@ -8,13 +8,16 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/core/db/postgres"
 	"github.com/CimaCha/gophermart-loyal-service/internal/core/httpserver"
+	orderh "github.com/CimaCha/gophermart-loyal-service/internal/order/handler"
+	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/order/repository"
+	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/order/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
-	Server *httpserver.HTTPServer
-	DB     *pgxpool.Pool
+	Server  *httpserver.HTTPServer
+	Pgxpool *pgxpool.Pool
 }
 
 func New(cfg *config.Config, log *slog.Logger) (*App, error) {
@@ -22,7 +25,7 @@ func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 	// Root router
 	rootRouter := chi.NewRouter()
 
-	db, err := postgres.New(*cfg.DB, log)
+	pool, err := postgres.New(*cfg.DB, log)
 	if err != nil {
 		log.Error("failed to create db connection pool", "err", err)
 		return nil, fmt.Errorf("database initialize: %w", err)
@@ -30,21 +33,29 @@ func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
 
+	// Потом убрать в .env
+
 	// userRepo
-	// orderRepo
+	orderRepo := orderrepo.New(pool)
 	// balanceRepo
 
 	// userService
-	// orderService
+	orderSvc := ordersvc.New(orderRepo, log)
 	// balanceService
 
 	// userHandler
-	// orderHandler
+	orderHandler := orderh.New(orderSvc, log)
 	// balanceHandler
 
+	// Регаем приватные маршруты для order handler
+	rootRouter.Group(func(r chi.Router) {
+
+		orderHandler.RegisterPrivateAPI(r)
+	})
+
 	return &App{
-		Server: httpServer,
-		DB:     db,
+		Server:  httpServer,
+		Pgxpool: pool,
 	}, nil
 
 }

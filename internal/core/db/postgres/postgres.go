@@ -2,11 +2,14 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 
+	"github.com/CimaCha/gophermart-loyal-service/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 func New(cfg Config, log *slog.Logger) (*pgxpool.Pool, error) {
@@ -36,39 +39,37 @@ func New(cfg Config, log *slog.Logger) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("new with config: %w", err)
 	}
 
-	// Здесь подтягиваем миграции при старте БД. В будущем когда появятся миграции, нужно будет просто раскоментить.
+	// Здесь подтягиваем миграции при старте БД.
 
-	/*
-		 log.Info(
-			"running db migrations",
-		 )
+	log.Info(
+		"running db migrations",
+	)
 
-		 db, err := sql.Open("pgx", cfg.URI)
-		 if err != nil {
-		 	log.Error(
-		 		"faild to open sql db",
-		 		"err", err,
-		 	)
-		 	pool.Close()
-		 	return nil, fmt.Errorf("open db for migrations: %w", err)
-		 }
-		 defer db.Close()
+	db, err := sql.Open("pgx", cfg.URI)
+	if err != nil {
+		log.Error(
+			"faild to open sql db",
+			"err", err,
+		)
+		pool.Close()
+		return nil, fmt.Errorf("open db for migrations: %w", err)
+	}
+	defer db.Close()
 
-		 goose.SetBaseFS(migrations.EmbedMigrations)
+	goose.SetBaseFS(migrations.EmbedMigrations)
 
-		 if err := goose.SetDialect("postgres"); err != nil {
-		 	log.Error(
-		 		"failed to set dialect",
-		 		"err", err,
-		 	)
-		 	return nil, fmt.Errorf("goose set dialect: %w", err)
-		 }
+	if err := goose.SetDialect("postgres"); err != nil {
+		log.Error(
+			"failed to set dialect",
+			"err", err,
+		)
+		return nil, fmt.Errorf("goose set dialect: %w", err)
+	}
 
-		 if err := goose.Up(db, "."); err != nil {
-		 	pool.Close()
-		 	return nil, fmt.Errorf("goose up: %w", err)
-		 }
-	*/
+	if err := goose.Up(db, "."); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("goose up: %w", err)
+	}
 
 	log.Info(
 		"database initialized successfully",
