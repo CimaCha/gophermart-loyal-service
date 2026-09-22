@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/order/model"
+	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -39,8 +40,8 @@ func (_m *MockOrderService) EXPECT() *MockOrderService_Expecter {
 }
 
 // GetOrders provides a mock function for the type MockOrderService
-func (_mock *MockOrderService) GetOrders(ctx context.Context, uidStr string) ([]model.Order, error) {
-	ret := _mock.Called(ctx, uidStr)
+func (_mock *MockOrderService) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
+	ret := _mock.Called(ctx, uid)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOrders")
@@ -48,18 +49,18 @@ func (_mock *MockOrderService) GetOrders(ctx context.Context, uidStr string) ([]
 
 	var r0 []model.Order
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]model.Order, error)); ok {
-		return returnFunc(ctx, uidStr)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.Order, error)); ok {
+		return returnFunc(ctx, uid)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []model.Order); ok {
-		r0 = returnFunc(ctx, uidStr)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.Order); ok {
+		r0 = returnFunc(ctx, uid)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.Order)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, uidStr)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, uid)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,20 +74,20 @@ type MockOrderService_GetOrders_Call struct {
 
 // GetOrders is a helper method to define mock.On call
 //   - ctx context.Context
-//   - uidStr string
-func (_e *MockOrderService_Expecter) GetOrders(ctx any, uidStr any) *MockOrderService_GetOrders_Call {
-	return &MockOrderService_GetOrders_Call{Call: _e.mock.On("GetOrders", ctx, uidStr)}
+//   - uid uuid.UUID
+func (_e *MockOrderService_Expecter) GetOrders(ctx any, uid any) *MockOrderService_GetOrders_Call {
+	return &MockOrderService_GetOrders_Call{Call: _e.mock.On("GetOrders", ctx, uid)}
 }
 
-func (_c *MockOrderService_GetOrders_Call) Run(run func(ctx context.Context, uidStr string)) *MockOrderService_GetOrders_Call {
+func (_c *MockOrderService_GetOrders_Call) Run(run func(ctx context.Context, uid uuid.UUID)) *MockOrderService_GetOrders_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -101,22 +102,22 @@ func (_c *MockOrderService_GetOrders_Call) Return(orders []model.Order, err erro
 	return _c
 }
 
-func (_c *MockOrderService_GetOrders_Call) RunAndReturn(run func(ctx context.Context, uidStr string) ([]model.Order, error)) *MockOrderService_GetOrders_Call {
+func (_c *MockOrderService_GetOrders_Call) RunAndReturn(run func(ctx context.Context, uid uuid.UUID) ([]model.Order, error)) *MockOrderService_GetOrders_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UploadOrder provides a mock function for the type MockOrderService
-func (_mock *MockOrderService) UploadOrder(ctx context.Context, orderNumStr string, uidStr string) error {
-	ret := _mock.Called(ctx, orderNumStr, uidStr)
+func (_mock *MockOrderService) UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error {
+	ret := _mock.Called(ctx, orderNumStr, uid)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UploadOrder")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = returnFunc(ctx, orderNumStr, uidStr)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderNumStr, uid)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -131,12 +132,12 @@ type MockOrderService_UploadOrder_Call struct {
 // UploadOrder is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderNumStr string
-//   - uidStr string
-func (_e *MockOrderService_Expecter) UploadOrder(ctx any, orderNumStr any, uidStr any) *MockOrderService_UploadOrder_Call {
-	return &MockOrderService_UploadOrder_Call{Call: _e.mock.On("UploadOrder", ctx, orderNumStr, uidStr)}
+//   - uid uuid.UUID
+func (_e *MockOrderService_Expecter) UploadOrder(ctx any, orderNumStr any, uid any) *MockOrderService_UploadOrder_Call {
+	return &MockOrderService_UploadOrder_Call{Call: _e.mock.On("UploadOrder", ctx, orderNumStr, uid)}
 }
 
-func (_c *MockOrderService_UploadOrder_Call) Run(run func(ctx context.Context, orderNumStr string, uidStr string)) *MockOrderService_UploadOrder_Call {
+func (_c *MockOrderService_UploadOrder_Call) Run(run func(ctx context.Context, orderNumStr string, uid uuid.UUID)) *MockOrderService_UploadOrder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -146,9 +147,9 @@ func (_c *MockOrderService_UploadOrder_Call) Run(run func(ctx context.Context, o
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 string
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -164,7 +165,7 @@ func (_c *MockOrderService_UploadOrder_Call) Return(err error) *MockOrderService
 	return _c
 }
 
-func (_c *MockOrderService_UploadOrder_Call) RunAndReturn(run func(ctx context.Context, orderNumStr string, uidStr string) error) *MockOrderService_UploadOrder_Call {
+func (_c *MockOrderService_UploadOrder_Call) RunAndReturn(run func(ctx context.Context, orderNumStr string, uid uuid.UUID) error) *MockOrderService_UploadOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }

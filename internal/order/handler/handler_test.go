@@ -13,7 +13,8 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/order/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/order/service"
-	"github.com/CimaCha/gophermart-loyal-service/internal/transport/http/ctxkeys"
+	"github.com/CimaCha/gophermart-loyal-service/internal/transport/ctxkeys"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -41,8 +42,10 @@ func TestHandler_CreateOrder_Success(t *testing.T) {
 		strings.NewReader("79927398713"),
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -51,7 +54,7 @@ func TestHandler_CreateOrder_Success(t *testing.T) {
 		UploadOrder(
 			mock.Anything,
 			"79927398713",
-			"user-id",
+			uid,
 		).
 		Return(nil)
 
@@ -69,8 +72,10 @@ func TestHandler_CreateOrder_InvalidOrder(t *testing.T) {
 		strings.NewReader("123"),
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -79,7 +84,7 @@ func TestHandler_CreateOrder_InvalidOrder(t *testing.T) {
 		UploadOrder(
 			mock.Anything,
 			"123",
-			"user-id",
+			uid,
 		).
 		Return(ordersvc.ErrInvalidOrderNum)
 
@@ -97,8 +102,10 @@ func TestHandler_CreateOrder_OrderAlreadyCreatedByAnotherUser(t *testing.T) {
 		strings.NewReader("79927398713"),
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -107,7 +114,7 @@ func TestHandler_CreateOrder_OrderAlreadyCreatedByAnotherUser(t *testing.T) {
 		UploadOrder(
 			mock.Anything,
 			"79927398713",
-			"user-id",
+			uid,
 		).
 		Return(ordersvc.ErrOrderAlreadyCreatedByAnotherUser)
 
@@ -125,8 +132,10 @@ func TestHandler_CreateOrder_InternalError(t *testing.T) {
 		strings.NewReader("79927398713"),
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -135,7 +144,7 @@ func TestHandler_CreateOrder_InternalError(t *testing.T) {
 		UploadOrder(
 			mock.Anything,
 			"79927398713",
-			"user-id",
+			uid,
 		).
 		Return(errors.New("unknown error"))
 
@@ -153,8 +162,10 @@ func TestHandler_CreateOrder_EmptyBody(t *testing.T) {
 		nil,
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -174,8 +185,10 @@ func TestHandler_CreateOrder_BodyTooLarge(t *testing.T) {
 		strings.NewReader(body),
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -196,8 +209,10 @@ func TestHandler_GetOrders_Success(t *testing.T) {
 		nil,
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
@@ -216,7 +231,7 @@ func TestHandler_GetOrders_Success(t *testing.T) {
 	}
 
 	svc.EXPECT().
-		GetOrders(mock.Anything, "user-id").
+		GetOrders(mock.Anything, uid).
 		Return(orders, nil)
 
 	h.GetOrders(rec, req)
@@ -245,14 +260,16 @@ func TestHandler_GetOrders_NoOrders(t *testing.T) {
 		nil,
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
 
 	svc.EXPECT().
-		GetOrders(mock.Anything, "user-id").
+		GetOrders(mock.Anything, uid).
 		Return([]model.Order{}, nil)
 
 	h.GetOrders(rec, req)
@@ -270,14 +287,16 @@ func TestHandler_GetOrders_InternalError(t *testing.T) {
 		nil,
 	)
 
+	uid := uuid.New()
+
 	req = req.WithContext(
-		ctxkeys.WithUserID(req.Context(), "user-id"),
+		ctxkeys.WithUserID(req.Context(), uid),
 	)
 
 	rec := httptest.NewRecorder()
 
 	svc.EXPECT().
-		GetOrders(mock.Anything, "user-id").
+		GetOrders(mock.Anything, uid).
 		Return(nil, errors.New("unknown error"))
 
 	h.GetOrders(rec, req)

@@ -3,13 +3,14 @@ package ctxkeys
 import (
 	"context"
 	"fmt"
+
 	"github.com/google/uuid"
 )
 
-type contextKey string
+type contextKey struct{}
 
-const (
-	userIDKey contextKey = "userID"
+var (
+	userIDKey = contextKey{}
 )
 
 func WithUserID(ctx context.Context, uid uuid.UUID) context.Context {
@@ -19,10 +20,7 @@ func WithUserID(ctx context.Context, uid uuid.UUID) context.Context {
 func GetUserID(ctx context.Context) (uuid.UUID, error) {
 	uid, ok := ctx.Value(userIDKey).(uuid.UUID)
 	if !ok {
-		return uuid.Nil, fmt.Errorf(
-			"failed to get user ID from context, actual type: %T",
-			ctx.Value(userIDKey),
-		)
+		return uuid.Nil, fmt.Errorf("user ID not found in context or has invalid type")
 	}
 	return uid, nil
 }

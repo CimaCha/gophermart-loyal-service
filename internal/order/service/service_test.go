@@ -31,7 +31,7 @@ func newTestService(t *testing.T) (*OrderService, *MockOrderRepository) {
 func TestService_UploadOrder_Success(t *testing.T) {
 	svc, repo := newTestService(t)
 
-	uid := uuid.New().String()
+	uid := uuid.New()
 
 	repo.EXPECT().
 		CreateOrder(
@@ -55,24 +55,10 @@ func TestService_UploadOrder_InvalidOrder(t *testing.T) {
 	err := svc.UploadOrder(
 		context.Background(),
 		"abc",
-		uuid.New().String(),
+		uuid.New(),
 	)
 
 	require.ErrorIs(t, err, ErrInvalidOrderNum)
-}
-
-func TestService_UploadOrder_InvalidUUID(t *testing.T) {
-	svc, _ := newTestService(t)
-
-	err := svc.UploadOrder(
-		context.Background(),
-		"79927398713",
-		"invalid-uuid",
-	)
-
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "uuid parse")
-
 }
 
 func TestService_UploadOrder_OrderAlreadyProcessing(t *testing.T) {
@@ -88,7 +74,7 @@ func TestService_UploadOrder_OrderAlreadyProcessing(t *testing.T) {
 	err := svc.UploadOrder(
 		context.Background(),
 		"79927398713",
-		uuid.New().String(),
+		uuid.New(),
 	)
 
 	require.ErrorIs(t, err, ErrOrderAlreadyProcessing)
@@ -107,7 +93,7 @@ func TestService_UploadOrder_OrderAlreadyCreatedByAnotherUser(t *testing.T) {
 	err := svc.UploadOrder(
 		context.Background(),
 		"79927398713",
-		uuid.New().String(),
+		uuid.New(),
 	)
 
 	require.ErrorIs(t, err, ErrOrderAlreadyCreatedByAnotherUser)
@@ -135,23 +121,11 @@ func TestService_GetOrders_Success(t *testing.T) {
 
 	actual, err := svc.GetOrders(
 		context.Background(),
-		uid.String(),
+		uid,
 	)
 
 	require.NoError(t, err)
 	assert.Equal(t, expected, actual)
-}
-
-func TestService_GetOrders_InvalidUUID(t *testing.T) {
-	svc, _ := newTestService(t)
-
-	_, err := svc.GetOrders(
-		context.Background(),
-		"bad-uuid",
-	)
-
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "uuid parse")
 }
 
 func TestService_GetOrders_RepositoryError(t *testing.T) {
@@ -168,7 +142,7 @@ func TestService_GetOrders_RepositoryError(t *testing.T) {
 
 	_, err := svc.GetOrders(
 		context.Background(),
-		uid.String(),
+		uid,
 	)
 
 	require.Error(t, err)
