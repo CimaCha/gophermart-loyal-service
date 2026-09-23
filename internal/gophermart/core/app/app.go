@@ -21,6 +21,10 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
 
+	balanceh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/handler"
+	balancerepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/repository"
+	balancesvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/service"
+
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -51,19 +55,20 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 	userRepo := userrepo.New(pool)
 	orderRepo := orderrepo.New(pool)
-	// balanceRepo
+	balanceRepo := balancerepo.New(pool)
 
 	userSvc := usersvc.New(userRepo, tokenBuilder, passHasher)
 	orderSvc := ordersvc.New(orderRepo, log)
-	// balanceService
+	balanceSvc := balancesvc.New(balanceRepo)
 
 	userHandler := userh.New(log, userSvc)
 	orderHandler := orderh.New(log, orderSvc)
-	// balanceHandler
+	balanceHandler := balanceh.New(log, balanceSvc)
 
 	dependencies := deps.New(
 		userHandler,
 		orderHandler,
+		balanceHandler,
 		tokenValidator,
 		limiter,
 		cfg,
