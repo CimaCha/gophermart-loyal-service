@@ -1,14 +1,19 @@
 include .env
 export
 
-run-app:
+# Запустить gophermart
+run-gophermart:
 	go run ./cmd/gophermart \
+	-a $(RUN_ADDRESS) \
   	-config $(CONFIG_PATH) \
   	-d $(DATABASE_URI)
 
-# Запускает тесты во всем приложение
-run-test:
+# Очистить кэш тестов
+test-clean:
 	go clean -testcache
+
+# Запускает тесты во всем приложение
+test:
 	go test -v ./...
 
 # Создать новую миграцию
