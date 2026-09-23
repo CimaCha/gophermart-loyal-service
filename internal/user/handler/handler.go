@@ -14,8 +14,6 @@ import (
 
 var errInvalidCredentialsRequest = errors.New("invalid credentials request")
 
-//go:generate go tool mockgen -source=handler.go -destination=mock/user_service_gen.go -package=mock
-
 type UserService interface {
 	CreateUser(ctx context.Context, userLogin string, password string) (string, error)
 	LoginUser(ctx context.Context, userLogin string, password string) (string, error)
