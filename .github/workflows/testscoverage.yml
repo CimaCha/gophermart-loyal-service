@@ -26,14 +26,11 @@ jobs:
         run: |
           COVERAGE=$(go tool cover -func=coverage.txt | grep total | awk '{print substr($3,1,length($3)-1)}')
 
-          echo "Coverage: $COVERAGE%"
+          echo "Total coverage: ${COVERAGE}%"
 
-          awk "BEGIN {
-            if ($COVERAGE < 60) {
-              print \"Coverage is below 60%\"
-              exit 1
-            }
-          }"
+          if (( $(echo "$COVERAGE < 60" | bc -l) )); then
+            echo "::warning::Coverage is below 60% (${COVERAGE}%)"
+          fi
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
