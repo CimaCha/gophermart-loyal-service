@@ -2,14 +2,30 @@ package repository
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/testenv"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var testPool *pgxpool.Pool
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	env := testenv.Setup(ctx)
+	testPool = env.Pool
+
+	code := m.Run()
+	env.Close(ctx)
+	os.Exit(code)
+}
 
 func cleanDB(t *testing.T) {
 	t.Helper()

@@ -5,9 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/testenv"
 	"github.com/google/uuid"
-	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -24,48 +23,39 @@ func mustDecimal(s string) decimal.Decimal {
 	return d
 }
 
-// setupTestDB создаёт пул соединений для интеграционного теста.
-// Возвращает пул с зарегистрированным decimal в TypeMap.
-func setupTestDB(t *testing.T) *pgxpool.Pool {
+var testPool *pgxpool.Pool
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	env := testenv.Setup(ctx)
+	testPool = env.Pool
+
+	code := m.Run()
+	env.Close(ctx)
+	os.Exit(code)
+}
+
+func cleanDB(t *testing.T) {
 	t.Helper()
-
-	dsn := os.Getenv("TEST_DATABASE_URI")
-	if dsn == "" {
-		dsn = os.Getenv("DATABASE_URI")
-	}
-	if dsn == "" {
-		t.Skip("neither TEST_DATABASE_URI nor DATABASE_URI is set, skipping integration test")
-	}
-
-	poolCfg, err := pgxpool.ParseConfig(dsn)
+	_, err := testPool.Exec(context.Background(), `TRUNCATE users, balance RESTART IDENTITY CASCADE`)
 	require.NoError(t, err)
-
-	poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		pgxdecimal.Register(conn.TypeMap())
-		return nil
-	}
-
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
-	require.NoError(t, err)
-	require.NoError(t, pool.Ping(context.Background()))
-	t.Cleanup(pool.Close)
-	return pool
 }
 
 func TestBalanceRepository_GetBalance(t *testing.T) {
-	pool := setupTestDB(t)
-	repo := New(pool)
+	cleanDB(t)
+	repo := New(testPool)
 	ctx := context.Background()
 
 	userID := uuid.New()
-	_, err := pool.Exec(ctx,
+	_, err := testPool.Exec(ctx,
 		`INSERT INTO users (id, login, password_hash) VALUES ($1, $2, $3)`,
 		userID, "test_user_"+userID.String()[:8], "hash",
 	)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		_, _ = pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
+		_, _ = testPool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
 	})
 
 	t.Run("no balance row returns zero", func(t *testing.T) {
@@ -77,7 +67,7 @@ func TestBalanceRepository_GetBalance(t *testing.T) {
 	})
 
 	t.Run("returns current and withdrawn", func(t *testing.T) {
-		_, err := pool.Exec(ctx,
+		_, err := testPool.Exec(ctx,
 			`INSERT INTO balance (user_uuid, current, withdrawn) VALUES ($1, $2, $3)`,
 			userID, mustDecimal("500.5"), mustDecimal("42"),
 		)

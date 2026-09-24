@@ -1,23 +1,26 @@
-package repository
+package testenv
 
 import (
 	"context"
 	"database/sql"
 	"log"
-	"os"
-	"testing"
 
 	"github.com/CimaCha/gophermart-loyal-service/migrations"
+	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	pg "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-var testPool *pgxpool.Pool
+type Environment struct {
+	Pool        *pgxpool.Pool
+	db          *sql.DB
+	pgContainer *pg.PostgresContainer
+}
 
-func TestMain(m *testing.M) {
-	ctx := context.Background()
+func Setup(ctx context.Context) *Environment {
 
 	pgContainer, err := pg.Run(
 		ctx,
@@ -36,9 +39,19 @@ func TestMain(m *testing.M) {
 		log.Fatalf("pg container connection string: %v", err)
 	}
 
-	pool, err := pgxpool.New(ctx, connStr)
+	poolCfg, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
-		log.Fatalf("pgxpool new: %v", err)
+		log.Fatalf("parse pool config: %v", err)
+	}
+
+	poolCfg.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
+		pgxdecimal.Register(c.TypeMap())
+		return nil
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		log.Fatalf("pgxpool new with config: %v", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
@@ -51,7 +64,6 @@ func TestMain(m *testing.M) {
 	}
 
 	goose.SetBaseFS(migrations.EmbedMigrations)
-
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Fatalf("goose set dialect: %v", err)
 	}
@@ -61,19 +73,21 @@ func TestMain(m *testing.M) {
 		log.Fatalf("goose up: %v", err)
 	}
 
-	testPool = pool
-
-	code := m.Run()
-
-	pool.Close()
-
-	if err := db.Close(); err != nil {
-		log.Fatalf("close db: %v", err)
+	return &Environment{
+		Pool:        pool,
+		db:          db,
+		pgContainer: pgContainer,
 	}
+}
 
-	if err := pgContainer.Terminate(ctx); err != nil {
-		log.Fatalf("terminate container: %v", err)
+func (env *Environment) Close(ctx context.Context) {
+	if env.Pool != nil {
+		env.Pool.Close()
 	}
-
-	os.Exit(code)
+	if env.db != nil {
+		_ = env.db.Close()
+	}
+	if env.pgContainer != nil {
+		_ = env.pgContainer.Terminate(ctx)
+	}
 }
