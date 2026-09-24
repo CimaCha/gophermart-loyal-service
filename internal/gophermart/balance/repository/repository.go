@@ -27,15 +27,16 @@ func New(pool *pgxpool.Pool) *BalanceRepository {
 // Если записи о балансе нет, возвращает нулевой Balance.
 func (r *BalanceRepository) GetBalance(ctx context.Context, userID uuid.UUID) (model.Balance, error) {
 	const query = `
-		SELECT current, withdrawn
-		FROM balance
-		WHERE user_uuid = $1
-	`
+    SELECT user_uuid, current, withdrawn
+    FROM balance
+    WHERE user_uuid = $1
+`
+
 	var b model.Balance
-	err := r.pool.QueryRow(ctx, query, userID).Scan(&b.Current, &b.Withdrawn)
+	err := r.pool.QueryRow(ctx, query, userID).Scan(&b.UserID, &b.Current, &b.Withdrawn)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.Balance{}, nil
+			return model.Balance{UserID: userID}, nil
 		}
 		return model.Balance{}, fmt.Errorf("query balance: %w", err)
 	}

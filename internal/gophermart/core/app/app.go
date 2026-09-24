@@ -20,6 +20,7 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
+	"github.com/shopspring/decimal"
 
 	balanceh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/handler"
 	balancerepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/repository"
@@ -37,6 +38,9 @@ type App struct {
 
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 
+	// Отключаем кавычки при JSON-сериализации decimal.Decimal,
+	// чтобы баланс отдавался числом (500.5), а не строкой ("500.5").
+	decimal.MarshalJSONWithoutQuotes = true
 	// Root router
 	rootRouter := chi.NewRouter()
 

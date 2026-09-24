@@ -8,7 +8,6 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/model"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/ctxkeys"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -26,13 +25,6 @@ func New(logger *slog.Logger, balanceService BalanceService) *Handler {
 		logger:  logger,
 		service: balanceService,
 	}
-}
-
-// RegisterProtectedAPI регистрирует роуты, требующие аутентификации.
-func (h *Handler) RegisterProtectedAPI(r chi.Router) {
-	r.Get("/api/user/balance", h.GetBalance)
-	// r.Post("/api/user/balance/withdraw", h.Withdraw)
-	// r.Get("/api/user/withdrawals", h.GetWithdrawals)
 }
 
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {

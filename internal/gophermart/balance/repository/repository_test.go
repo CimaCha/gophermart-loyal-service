@@ -6,12 +6,26 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/model"
 )
 
+// mustDecimal парсит строку в decimal.Decimal, паникует при ошибке.
+// Хелпер для тестов: строку парсим надёжнее, чем float64.
+func mustDecimal(s string) decimal.Decimal {
+	d, err := decimal.NewFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
+
+// setupTestDB создаёт пул соединений для интеграционного теста.
+// Возвращает пул с зарегистрированным decimal в TypeMap.
 func setupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
@@ -23,7 +37,15 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		t.Skip("neither TEST_DATABASE_URI nor DATABASE_URI is set, skipping integration test")
 	}
 
-	pool, err := pgxpool.New(context.Background(), dsn)
+	poolCfg, err := pgxpool.ParseConfig(dsn)
+	require.NoError(t, err)
+
+	poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		pgxdecimal.Register(conn.TypeMap())
+		return nil
+	}
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
 	require.NoError(t, err)
 	require.NoError(t, pool.Ping(context.Background()))
 	t.Cleanup(pool.Close)
@@ -49,18 +71,22 @@ func TestBalanceRepository_GetBalance(t *testing.T) {
 	t.Run("no balance row returns zero", func(t *testing.T) {
 		got, err := repo.GetBalance(ctx, userID)
 		require.NoError(t, err)
-		require.Equal(t, model.Balance{Current: 0, Withdrawn: 0}, got)
+		assert.True(t, got.Current.Equal(decimal.Zero), "current should be zero")
+		assert.True(t, got.Withdrawn.Equal(decimal.Zero), "withdrawn should be zero")
+		assert.Equal(t, userID, got.UserID)
 	})
 
 	t.Run("returns current and withdrawn", func(t *testing.T) {
 		_, err := pool.Exec(ctx,
 			`INSERT INTO balance (user_uuid, current, withdrawn) VALUES ($1, $2, $3)`,
-			userID, 500.5, 42,
+			userID, mustDecimal("500.5"), mustDecimal("42"),
 		)
 		require.NoError(t, err)
 
 		got, err := repo.GetBalance(ctx, userID)
 		require.NoError(t, err)
-		require.Equal(t, model.Balance{Current: 500.5, Withdrawn: 42}, got)
+		assert.True(t, mustDecimal("500.5").Equal(got.Current), "current mismatch")
+		assert.True(t, mustDecimal("42").Equal(got.Withdrawn), "withdrawn mismatch")
+		assert.Equal(t, userID, got.UserID)
 	})
 }

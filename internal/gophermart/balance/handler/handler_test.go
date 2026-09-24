@@ -3,12 +3,14 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -17,16 +19,37 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/ctxkeys"
 )
 
-// TestHandler_GetBalance_Success проверяет успешный сценарий:
-// userID есть в контексте, сервис вернул баланс, хендлер отдал 200 и JSON.
+func init() {
+	// decimal в JSON — числом, а не строкой.
+	decimal.MarshalJSONWithoutQuotes = true
+}
+
+// mustDecimal парсит строку в decimal.Decimal, паникует при ошибке.
+func mustDecimal(s string) decimal.Decimal {
+	d, err := decimal.NewFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
+
+// newTestLogger возвращает logger, который пишет в никуда.
+func newTestLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
 func TestHandler_GetBalance_Success(t *testing.T) {
 	userID := uuid.New()
-	expected := model.Balance{Current: 500.5, Withdrawn: 42}
+	expected := model.Balance{
+		UserID:    userID,
+		Current:   mustDecimal("500.5"),
+		Withdrawn: mustDecimal("42"),
+	}
 
 	svc := NewMockBalanceService(t)
 	svc.On("GetBalance", mock.Anything, userID).Return(expected, nil)
 
-	h := New(slog.Default(), svc)
+	h := New(newTestLogger(), svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/user/balance", nil)
 	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
@@ -39,16 +62,14 @@ func TestHandler_GetBalance_Success(t *testing.T) {
 
 	var got model.Balance
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
-	assert.Equal(t, expected, got)
+	assert.True(t, expected.Current.Equal(got.Current), "current mismatch")
+	assert.True(t, expected.Withdrawn.Equal(got.Withdrawn), "withdrawn mismatch")
 	svc.AssertExpectations(t)
 }
 
-// TestHandler_GetBalance_NoUserID проверяет, что без userID в контексте
-// хендлер возвращает 401.
 func TestHandler_GetBalance_NoUserID(t *testing.T) {
-
 	svc := NewMockBalanceService(t)
-	h := New(slog.Default(), svc)
+	h := New(newTestLogger(), svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/user/balance", nil)
 	rec := httptest.NewRecorder()
@@ -58,15 +79,13 @@ func TestHandler_GetBalance_NoUserID(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
-// TestHandler_GetBalance_ServiceError проверяет, что ошибка сервиса
-// маппится в 500.
 func TestHandler_GetBalance_ServiceError(t *testing.T) {
 	userID := uuid.New()
 	svc := NewMockBalanceService(t)
 	svc.On("GetBalance", mock.Anything, userID).
 		Return(model.Balance{}, errors.New("boom"))
 
-	h := New(slog.Default(), svc)
+	h := New(newTestLogger(), svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/user/balance", nil)
 	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
