@@ -7,6 +7,8 @@ import (
 	"log/slog"
 
 	"github.com/CimaCha/gophermart-loyal-service/migrations"
+	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -27,6 +29,11 @@ func New(cfg Config, log *slog.Logger) (*pgxpool.Pool, error) {
 		)
 
 		return nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		pgxdecimal.Register(conn.TypeMap())
+		return nil
 	}
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)

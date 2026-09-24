@@ -17,6 +17,7 @@ func SetupRoutes(r chi.Router, deps *deps.Dependencies) {
 				registerOrderRoutes(r, deps)
 			})
 
+			registerBalanceRoutes(r, deps)
 		})
 	})
 }
