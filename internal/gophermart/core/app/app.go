@@ -19,6 +19,7 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
+	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
 	"github.com/shopspring/decimal"
 
@@ -44,7 +45,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	// Root router
 	rootRouter := chi.NewRouter()
 
-	pool, err := postgres.New(*cfg.DB, log)
+	pool, err := postgres.New(*cfg.DB, log, gophermartMigrations.EmbedMigrations)
 	if err != nil {
 		log.Error("failed to create db connection pool", "err", err)
 		return nil, fmt.Errorf("database initialize: %w", err)

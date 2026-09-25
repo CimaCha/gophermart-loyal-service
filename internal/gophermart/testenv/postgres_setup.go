@@ -3,9 +3,9 @@ package testenv
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"log"
 
-	"github.com/CimaCha/gophermart-loyal-service/migrations"
 	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,7 +20,7 @@ type Environment struct {
 	pgContainer *pg.PostgresContainer
 }
 
-func Setup(ctx context.Context) *Environment {
+func Setup(ctx context.Context, migrationsFS embed.FS) *Environment {
 
 	pgContainer, err := pg.Run(
 		ctx,
@@ -63,7 +63,7 @@ func Setup(ctx context.Context) *Environment {
 		log.Fatalf("sql open: %v", err)
 	}
 
-	goose.SetBaseFS(migrations.EmbedMigrations)
+	goose.SetBaseFS(migrationsFS)
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Fatalf("goose set dialect: %v", err)
 	}
