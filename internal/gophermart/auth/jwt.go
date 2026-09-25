@@ -9,7 +9,7 @@ import (
 )
 
 type TokenService struct {
-	SecretKey []byte
+	secretKey []byte
 }
 
 var (
@@ -20,7 +20,7 @@ var (
 
 func New(secretKey []byte) *TokenService {
 	return &TokenService{
-		SecretKey: secretKey,
+		secretKey: secretKey,
 	}
 }
 
@@ -47,7 +47,7 @@ func (b TokenService) BuildJWTString(userID uuid.UUID) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// создаём строку токена
-	return token.SignedString(b.SecretKey)
+	return token.SignedString(b.secretKey)
 }
 
 func (b TokenService) ValidateToken(tokenString string) (uuid.UUID, error) {
@@ -58,7 +58,7 @@ func (b TokenService) ValidateToken(tokenString string) (uuid.UUID, error) {
 			if t.Method != jwt.SigningMethodHS256 {
 				return nil, ErrInvalidToken
 			}
-			return b.SecretKey, nil
+			return b.secretKey, nil
 		})
 
 	if err != nil {
