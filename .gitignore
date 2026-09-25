@@ -26,8 +26,10 @@ go.work.sum
 logs/
 vendor/
 *.log
+
 # env file
-.env
+.env.gophermart
+.env.accrual
 
 # Editor/IDE
 # .idea/
