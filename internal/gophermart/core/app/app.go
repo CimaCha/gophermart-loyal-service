@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	authentication "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/auth"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/config"
@@ -37,6 +38,10 @@ type App struct {
 	Pgxpool *pgxpool.Pool
 }
 
+const (
+	defaultJWTKey = "super-secret-key"
+)
+
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	// Отключаем кавычки при JSON-сериализации decimal.Decimal,
@@ -54,15 +59,25 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
 
 	limiter := ratelimit.NewRLS(ctx, cfg.RLS, log)
-	tokenBuilder := authentication.NewJWTBuilder([]byte("temp-secret-key"))
-	tokenValidator := authentication.NewUserIDParser([]byte("temp-secret-key"))
+
+	var (
+		jwtSecret string
+	)
+
+	jwtSecret = os.Getenv("S_JWT")
+
+	if jwtSecret == "" {
+		jwtSecret = defaultJWTKey
+	}
+
+	tokenSvc := authentication.New([]byte(jwtSecret))
 	passHasher := new(passhasher.Argon2Hasher)
 
 	userRepo := userrepo.New(pool)
 	orderRepo := orderrepo.New(pool)
 	balanceRepo := balancerepo.New(pool)
 
-	userSvc := usersvc.New(userRepo, tokenBuilder, passHasher)
+	userSvc := usersvc.New(userRepo, tokenSvc, passHasher)
 	orderSvc := ordersvc.New(orderRepo, log)
 	balanceSvc := balancesvc.New(balanceRepo)
 
@@ -74,7 +89,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		userHandler,
 		orderHandler,
 		balanceHandler,
-		tokenValidator,
+		tokenSvc,
 		limiter,
 		cfg,
 		log,
