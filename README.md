@@ -126,20 +126,6 @@ config/
 | `RUN_ADDRESS` | `-a` | Адрес и порт запуска | `:8081` |
 | `DATABASE_URI` | `-d` | Строка подключения к PostgreSQL | — |
 
-### Миграции
-
-```bash
-migrate -path migrations/gophermart -database "$DATABASE_URI" up
-migrate -path migrations/accrual -database "$DATABASE_URI_ACCRUAL" up
-```
-
-### Запуск
-
-```bash
-make run-gophermart
-make run-accrual
-```
-
 ## Конфигурация
 
 Помимо флагов/переменных окружения, часть настроек (rate limit по роутам,
@@ -205,20 +191,42 @@ go test ./... -cover
 Для интеграционных тестов с БД используется `testcontainers` (см. `*_test.go`
 в пакетах `repository`).
 
-### Запустить приложение
+## Запустить приложение
+
+Перед запуском убедитесь, что PostgreSQL запущен и настроены файлы
+`.env.gophermart` и `.env.accrual`.
+
+### Через Makefile
+
+Запустить сервис **gophermart**:
 
 ```bash
-go go run ./cmd/gophermart \
-  -config config.yaml \
-  -d postgres://postgres:password@localhost:5432/database
+make run-gophermart
 ```
 
-или
+Запустить сервис **accrual**:
 
 ```bash
-make run-app
+make run-accrual
 ```
 
+### Напрямую через Go
+
+Запустить **gophermart**:
+
+```bash
+go run ./cmd/gophermart \
+  -a :8080 \
+  -d postgres://user:pass@localhost:5432/gophermart_db?sslmode=disable
+```
+
+Запустить **accrual**:
+
+```bash
+go run ./cmd/accrual \
+  -a :8081 \
+  -d postgres://user:pass@localhost:5432/accrual_db?sslmode=disable
+```
 
 ### Запустить тесты (интеграционные и юниты)
 
