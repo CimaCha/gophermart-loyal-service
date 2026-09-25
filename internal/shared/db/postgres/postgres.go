@@ -3,10 +3,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 	"log/slog"
 
-	"github.com/CimaCha/gophermart-loyal-service/migrations"
 	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,7 +14,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func New(cfg Config, log *slog.Logger) (*pgxpool.Pool, error) {
+func New(cfg Config, log *slog.Logger, migrationsFS embed.FS) (*pgxpool.Pool, error) {
 
 	log.Info(
 		"connecting to database",
@@ -63,7 +63,7 @@ func New(cfg Config, log *slog.Logger) (*pgxpool.Pool, error) {
 	}
 	defer db.Close()
 
-	goose.SetBaseFS(migrations.EmbedMigrations)
+	goose.SetBaseFS(migrationsFS)
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Error(

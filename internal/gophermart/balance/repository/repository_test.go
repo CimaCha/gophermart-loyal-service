@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/testenv"
+	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
@@ -28,7 +29,7 @@ var testPool *pgxpool.Pool
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	env := testenv.Setup(ctx)
+	env := testenv.Setup(ctx, gophermartMigrations.EmbedMigrations)
 	testPool = env.Pool
 
 	code := m.Run()

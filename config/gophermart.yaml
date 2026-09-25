@@ -1,5 +1,5 @@
 ## LOGGER CONFIG ##
-directory: logs
+directory: logs/gophermart
 
 stdout:
   enabled: true
