@@ -79,7 +79,12 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		log,
 	)
 
-	rootRouter.Use(chimiddleware.Recoverer, middleware.RequestID(), middleware.Logging(log))
+	rootRouter.Use(
+		chimiddleware.Recoverer,
+		middleware.RequestID(),
+		middleware.Logging(log),
+		middleware.GzipCompress(),
+	)
 
 	// Регистрируем все маршруты здесь
 	router.SetupRoutes(rootRouter, dependencies)
