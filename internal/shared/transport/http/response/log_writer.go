@@ -3,13 +3,13 @@ package httpresponse
 import "net/http"
 
 type (
-	reponseData struct {
+	responseData struct {
 		statusCode int
 		bodySize   int
 	}
 	LoggingResponseWriter struct {
 		http.ResponseWriter
-		reponseData *reponseData
+		responseData *responseData
 	}
 )
 
@@ -20,7 +20,7 @@ var (
 func New(w http.ResponseWriter) *LoggingResponseWriter {
 	return &LoggingResponseWriter{
 		ResponseWriter: w,
-		reponseData: &reponseData{
+		responseData: &responseData{
 			statusCode: StatusCodeUninitialized,
 		},
 	}
@@ -28,22 +28,22 @@ func New(w http.ResponseWriter) *LoggingResponseWriter {
 
 func (r *LoggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
-	r.reponseData.bodySize += size
+	r.responseData.bodySize += size
 	return size, err
 }
 
 func (r *LoggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
-	r.reponseData.statusCode = statusCode
+	r.responseData.statusCode = statusCode
 }
 
 func (r *LoggingResponseWriter) GetStatusCode() int {
-	if r.reponseData.statusCode == StatusCodeUninitialized {
+	if r.responseData.statusCode == StatusCodeUninitialized {
 		panic("no status code set")
 	}
-	return r.reponseData.statusCode
+	return r.responseData.statusCode
 }
 
 func (r *LoggingResponseWriter) GetBodySize() int {
-	return r.reponseData.bodySize
+	return r.responseData.bodySize
 }
