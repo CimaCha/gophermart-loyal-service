@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	middleware2 "github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/middleware"
 	"log/slog"
 	"os"
 
@@ -12,7 +13,6 @@ import (
 	orderh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/handler"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/repository"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/service"
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/middleware"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/router"
 	userh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler"
 	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
@@ -97,9 +97,9 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 	rootRouter.Use(
 		chimiddleware.Recoverer,
-		middleware.RequestID(),
-		middleware.Logging(log),
-		middleware.GzipCompress(),
+		middleware2.RequestID(),
+		middleware2.Logging(log),
+		middleware2.GzipCompress(),
 	)
 
 	// Регистрируем все маршруты здесь
