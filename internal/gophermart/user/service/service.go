@@ -16,8 +16,6 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
-//go:generate go tool mockgen -source=service.go -destination=mock/dependencies_gen.go -package=mock
-
 type TokenBuilder interface {
 	BuildJWTString(uuid.UUID) (string, error)
 }
@@ -28,7 +26,7 @@ type PasswordHasher interface {
 }
 
 type UserRepository interface {
-	FindUserInfo(ctx context.Context, userLogin string) (model.UserInfo, error)
+	FindUserInfo(ctx context.Context, userLogin string) (*model.UserInfo, error)
 	SaveUserInfo(ctx context.Context, userInfo model.UserInfo) error
 }
 

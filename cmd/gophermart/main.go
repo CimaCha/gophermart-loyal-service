@@ -31,13 +31,13 @@ func main() {
 	}
 
 	defer func() {
-		if err := closer.Close(); err != nil {
+		if err = closer.Close(); err != nil {
 			log.Printf("logger close: %v\n", err)
 		}
 	}()
 
-	// initialize app
-	app, err := app.New(sigCtx, cfg, slog)
+	// initialize application
+	application, err := app.New(sigCtx, cfg, slog)
 	if err != nil {
 		slog.Error(
 			"failed to initialize application",
@@ -46,8 +46,8 @@ func main() {
 		return
 	}
 
-	// Run app
-	if err := app.Run(sigCtx); err != nil {
+	// Run application
+	if err = application.Run(sigCtx); err != nil {
 		slog.Error(
 			"failed to run server",
 			"err", err,
