@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler/mock"
+	mock "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler/mock"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service"
+	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func TestHandler_RegisterUser(t *testing.T) {
@@ -38,13 +38,11 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serviceMock := mock.NewMockUserService(gomock.NewController(t))
+			serviceMock := mock.NewMockUserService(t)
 			if tt.wantCalled {
 				serviceMock.EXPECT().
-					CreateUser(gomock.Any(), "alice", "secret").
+					CreateUser(testifymock.Anything, "alice", "secret").
 					Return("signed-token", tt.serviceErr)
-			} else {
-				serviceMock.EXPECT().CreateUser(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			}
 			h := New(slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
 
@@ -90,13 +88,11 @@ func TestHandler_LoginUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serviceMock := mock.NewMockUserService(gomock.NewController(t))
+			serviceMock := mock.NewMockUserService(t)
 			if tt.wantCalled {
 				serviceMock.EXPECT().
-					LoginUser(gomock.Any(), "alice", "secret").
+					LoginUser(testifymock.Anything, "alice", "secret").
 					Return("signed-token", tt.serviceErr)
-			} else {
-				serviceMock.EXPECT().LoginUser(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			}
 			h := New(slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
 

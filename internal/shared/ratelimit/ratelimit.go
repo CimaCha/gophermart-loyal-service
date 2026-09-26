@@ -19,7 +19,7 @@ type Item struct {
 	expiresAt time.Time
 }
 
-// Создаёт RateLimitStorage и запускает горутину воркера для очистки кэша от устаревших записей
+// NewRLS Создаёт RateLimitStorage и запускает горутину воркера для очистки кэша от устаревших записей
 func NewRLS(ctx context.Context, cfg *Config, log *slog.Logger) *RateLimitStorage {
 	r := &RateLimitStorage{m: map[string]*Item{}, l: log}
 	go r.cleanupWorker(ctx, cfg.CleanupInterval) // воркер для очистки кэша

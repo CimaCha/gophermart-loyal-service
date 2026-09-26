@@ -7,10 +7,10 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/model"
 	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service/mock"
+	mock "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service/mock"
 	"github.com/google/uuid"
+	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 type testStruct struct{}
@@ -38,26 +38,23 @@ func TestUserService_CreateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.WithValue(context.Background(), testStruct{}, "request")
-			ctrl := gomock.NewController(t)
-			storageMock := mock.NewMockUserStorage(ctrl)
-			tokenBuilderMock := mock.NewMockTokenBuilder(ctrl)
-			passwordHasherMock := mock.NewMockPasswordHasher(ctrl)
+			repositoryMock := mock.NewMockUserRepository(t)
+			tokenBuilderMock := mock.NewMockTokenBuilder(t)
+			passwordHasherMock := mock.NewMockPasswordHasher(t)
 
-			calls := []any{
-				passwordHasherMock.EXPECT().Hash("secret").Return("encoded-hash", tt.hashErr),
-			}
+			passwordHasherMock.EXPECT().Hash("secret").Return("encoded-hash", tt.hashErr)
 			if tt.hashErr == nil {
-				calls = append(calls, tokenBuilderMock.EXPECT().
-					BuildJWTString(gomock.Any()).
-					DoAndReturn(func(userID uuid.UUID) (string, error) {
+				tokenBuilderMock.EXPECT().
+					BuildJWTString(testifymock.Anything).
+					RunAndReturn(func(userID uuid.UUID) (string, error) {
 						require.NotEqual(t, uuid.Nil, userID)
 						return "signed-token", tt.tokenErr
-					}))
+					})
 			}
 			if tt.hashErr == nil && tt.tokenErr == nil {
-				calls = append(calls, storageMock.EXPECT().
-					SaveUserInfo(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(gotCtx context.Context, user model.UserInfo) error {
+				repositoryMock.EXPECT().
+					SaveUserInfo(testifymock.Anything, testifymock.Anything).
+					RunAndReturn(func(gotCtx context.Context, user model.UserInfo) error {
 						require.Same(t, ctx, gotCtx)
 						require.NotEqual(t, uuid.Nil, user.UUID)
 						require.Equal(t, "alice", user.Login)
@@ -65,12 +62,11 @@ func TestUserService_CreateUser(t *testing.T) {
 						require.NotEqual(t, "secret", user.PasswordHash)
 						require.False(t, user.CreatedAt.IsZero())
 						return tt.repoErr
-					}))
+					})
 			}
-			gomock.InOrder(calls...)
 
 			svc := New(
-				storageMock,
+				repositoryMock,
 				tokenBuilderMock,
 				passwordHasherMock,
 			)
@@ -114,33 +110,29 @@ func TestUserService_LoginUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.WithValue(context.Background(), testStruct{}, "request")
-			ctrl := gomock.NewController(t)
-			storageMock := mock.NewMockUserStorage(ctrl)
-			tokenBuilderMock := mock.NewMockTokenBuilder(ctrl)
-			passwordHasherMock := mock.NewMockPasswordHasher(ctrl)
+			repositoryMock := mock.NewMockUserRepository(t)
+			tokenBuilderMock := mock.NewMockTokenBuilder(t)
+			passwordHasherMock := mock.NewMockPasswordHasher(t)
 
-			calls := []any{
-				storageMock.EXPECT().
-					FindUserInfo(gomock.Any(), "alice").
-					DoAndReturn(func(gotCtx context.Context, login string) (model.UserInfo, error) {
-						require.Same(t, ctx, gotCtx)
-						return model.UserInfo{UUID: userID, Login: login, PasswordHash: "encoded-hash"}, tt.findErr
-					}),
-			}
+			repositoryMock.EXPECT().
+				FindUserInfo(testifymock.Anything, "alice").
+				RunAndReturn(func(gotCtx context.Context, login string) (*model.UserInfo, error) {
+					require.Same(t, ctx, gotCtx)
+					return &model.UserInfo{UUID: userID, Login: login, PasswordHash: "encoded-hash"}, tt.findErr
+				})
 			if tt.findErr == nil {
-				calls = append(calls, passwordHasherMock.EXPECT().
+				passwordHasherMock.EXPECT().
 					Compare("secret", "encoded-hash").
-					Return(tt.match, tt.compareErr))
+					Return(tt.match, tt.compareErr)
 			}
 			if tt.findErr == nil && tt.compareErr == nil && tt.match {
-				calls = append(calls, tokenBuilderMock.EXPECT().
+				tokenBuilderMock.EXPECT().
 					BuildJWTString(userID).
-					Return("signed-token", tt.tokenErr))
+					Return("signed-token", tt.tokenErr)
 			}
-			gomock.InOrder(calls...)
 
 			svc := New(
-				storageMock,
+				repositoryMock,
 				tokenBuilderMock,
 				passwordHasherMock,
 			)
