@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/user/model"
-	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/user/repository"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/model"
+	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
 	"github.com/google/uuid"
 	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

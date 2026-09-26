@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Просто проставляет в Header X-Request-ID, чтобы можно было логировать цепочку запросов
+// RequestID Просто проставляет в Header X-Request-ID, чтобы можно было логировать цепочку запросов
 func RequestID() Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

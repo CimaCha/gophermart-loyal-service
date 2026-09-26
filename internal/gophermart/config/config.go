@@ -18,8 +18,8 @@ type Config struct {
 	RLS    *ratelimit.Config
 }
 
-// для получения config.yaml из флагов или env
-type ConfigLoader struct {
+// Loader для получения config.yaml из флагов или env
+type Loader struct {
 	Path string `env:"GOPHERMART_CONFIG_PATH"`
 }
 
@@ -68,8 +68,8 @@ func Load(args []string) (*Config, error) {
 
 }
 
-func RegisterConfigPathFlag(fs *flag.FlagSet) *ConfigLoader {
-	cfg := new(ConfigLoader)
+func RegisterConfigPathFlag(fs *flag.FlagSet) *Loader {
+	cfg := new(Loader)
 
 	fs.StringVar(
 		&cfg.Path,
@@ -81,7 +81,7 @@ func RegisterConfigPathFlag(fs *flag.FlagSet) *ConfigLoader {
 	return cfg
 }
 
-func (c *ConfigLoader) ParseEnv() error {
+func (c *Loader) ParseEnv() error {
 	if err := env.Parse(c); err != nil {
 		return fmt.Errorf("failed to parse env: %w", err)
 	}
