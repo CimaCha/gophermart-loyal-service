@@ -10,3 +10,9 @@ type Balance struct {
 	Current   decimal.Decimal `json:"current"`
 	Withdrawn decimal.Decimal `json:"withdrawn"`
 }
+
+// Тело запроса POST /api/user/balance/withdraw.
+type WithdrawRequest struct {
+	Order string          `json:"order"`
+	Sum   decimal.Decimal `json:"sum"`
+}
