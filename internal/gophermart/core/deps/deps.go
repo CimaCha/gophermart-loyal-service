@@ -15,7 +15,7 @@ type Dependencies struct {
 	UserHandler    *userh.Handler
 	OrderHandler   *orderh.Handler
 	BalanceHandler *balansh.Handler
-	Tv             *authentication.Parser
+	TokenSvc       *authentication.TokenService
 	Limiter        *ratelimit.RateLimitStorage
 	Cfg            *config.Config
 	Logger         *slog.Logger
@@ -25,7 +25,7 @@ func New(
 	userHandler *userh.Handler,
 	orderHandler *orderh.Handler,
 	balanceHandler *balansh.Handler,
-	tokenValidator *authentication.Parser,
+	tokenSvc *authentication.TokenService,
 	limiter *ratelimit.RateLimitStorage,
 	cfg *config.Config,
 	logger *slog.Logger,
@@ -34,7 +34,7 @@ func New(
 		UserHandler:    userHandler,
 		OrderHandler:   orderHandler,
 		BalanceHandler: balanceHandler,
-		Tv:             tokenValidator,
+		TokenSvc:       tokenSvc,
 		Limiter:        limiter,
 		Cfg:            cfg,
 		Logger:         logger,

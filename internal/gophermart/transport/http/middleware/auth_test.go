@@ -39,9 +39,9 @@ func TestAuthMiddleware(t *testing.T) {
 			downstream := false
 			validator := mock.NewMockTokenValidator(gomock.NewController(t))
 			if tt.wantValidated {
-				validator.EXPECT().ValidateUserID(tt.cookie.Value).Return(userID, tt.validatorErr)
+				validator.EXPECT().ValidateToken(tt.cookie.Value).Return(userID, tt.validatorErr)
 			} else {
-				validator.EXPECT().ValidateUserID(gomock.Any()).Times(0)
+				validator.EXPECT().ValidateToken(gomock.Any()).Times(0)
 			}
 			middleware := AuthMiddleware(validator)
 			handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
