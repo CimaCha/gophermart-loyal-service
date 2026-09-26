@@ -1,7 +1,7 @@
 all: false
 
-dir: '{{.InterfaceDir}}'
-filename: mocks_{{.InterfaceName}}.go
+dir: '{{.InterfaceDir}}/mock'
+filename: mocks_{{.InterfaceName}}.gen.go
 force-file-write: true
 formatter: goimports
 
@@ -26,10 +26,10 @@ template: testify
 template-schema: '{{.Template}}.schema.json'
 
 packages:
-  github.com/CimaCha/gophermart-loyal-service/internal/user/handler:
+  github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler:
     config:
       all: true
 
-  github.com/CimaCha/gophermart-loyal-service/internal/user/service:
+  github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service:
     config:
       all: true

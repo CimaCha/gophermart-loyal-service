@@ -27,21 +27,32 @@ func New(pool *pgxpool.Pool) *UserRepository {
 
 func (r *UserRepository) FindUserInfo(ctx context.Context, userLogin string) (*model.UserInfo, error) {
 	userInfo := &model.UserInfo{}
-	err := r.pool.QueryRow(ctx, "SELECT * FROM users WHERE login = $1", userLogin).Scan(userInfo)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrUserNotFound
-	}
+	query := `
+		SELECT id, login, password_hash, created_at
+		FROM users WHERE login = $1
+	`
+	err := r.pool.QueryRow(ctx, query, userLogin).Scan(&userInfo.UUID, &userInfo.Login, &userInfo.PasswordHash, &userInfo.CreatedAt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
 		return nil, err
 	}
 	return userInfo, nil
 }
 
 func (r *UserRepository) SaveUserInfo(ctx context.Context, userInfo model.UserInfo) error {
-	_, err := r.pool.Exec(ctx, "INSERT INTO users(id, login, password_hash, created_at) VALUES ($1,$2, $3, $4)", userInfo.UUID, userInfo.Login, userInfo.PasswordHash, userInfo.CreatedAt)
+	query := `
+		INSERT INTO users(id, login, password_hash, created_at)
+		VALUES ($1,$2, $3, $4)
+	`
+	_, err := r.pool.Exec(ctx, query, userInfo.UUID, userInfo.Login, userInfo.PasswordHash, userInfo.CreatedAt)
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return ErrUserAlreadyExists
+	if err != nil {
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrUserAlreadyExists
+		}
+		return err
 	}
-	return err
+	return nil
 }

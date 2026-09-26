@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	mock "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler/mock"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service"
 	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serviceMock := NewMockUserService(t)
+			serviceMock := mock.NewMockUserService(t)
 			if tt.wantCalled {
 				serviceMock.EXPECT().
 					CreateUser(testifymock.Anything, "alice", "secret").
@@ -87,7 +88,7 @@ func TestHandler_LoginUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serviceMock := NewMockUserService(t)
+			serviceMock := mock.NewMockUserService(t)
 			if tt.wantCalled {
 				serviceMock.EXPECT().
 					LoginUser(testifymock.Anything, "alice", "secret").

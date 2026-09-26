@@ -7,6 +7,7 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/model"
 	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
+	mock "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service/mock"
 	"github.com/google/uuid"
 	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,9 +38,9 @@ func TestUserService_CreateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.WithValue(context.Background(), testStruct{}, "request")
-			repositoryMock := NewMockUserRepository(t)
-			tokenBuilderMock := NewMockTokenBuilder(t)
-			passwordHasherMock := NewMockPasswordHasher(t)
+			repositoryMock := mock.NewMockUserRepository(t)
+			tokenBuilderMock := mock.NewMockTokenBuilder(t)
+			passwordHasherMock := mock.NewMockPasswordHasher(t)
 
 			passwordHasherMock.EXPECT().Hash("secret").Return("encoded-hash", tt.hashErr)
 			if tt.hashErr == nil {
@@ -109,9 +110,9 @@ func TestUserService_LoginUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.WithValue(context.Background(), testStruct{}, "request")
-			repositoryMock := NewMockUserRepository(t)
-			tokenBuilderMock := NewMockTokenBuilder(t)
-			passwordHasherMock := NewMockPasswordHasher(t)
+			repositoryMock := mock.NewMockUserRepository(t)
+			tokenBuilderMock := mock.NewMockTokenBuilder(t)
+			passwordHasherMock := mock.NewMockPasswordHasher(t)
 
 			repositoryMock.EXPECT().
 				FindUserInfo(testifymock.Anything, "alice").
