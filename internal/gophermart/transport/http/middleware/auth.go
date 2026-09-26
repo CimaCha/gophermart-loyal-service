@@ -13,7 +13,7 @@ import (
 //go:generate go tool mockgen -source=auth.go -destination=mock/token_validator_gen.go -package=mock
 
 type TokenValidator interface {
-	ValidateUserID(jwt string) (uuid.UUID, error)
+	ValidateToken(tokenString string) (uuid.UUID, error)
 }
 
 func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handler {
@@ -25,7 +25,7 @@ func AuthMiddleware(tokenValidator TokenValidator) func(http.Handler) http.Handl
 				return
 			}
 
-			userID, err := tokenValidator.ValidateUserID(jwtCookie.Value)
+			userID, err := tokenValidator.ValidateToken(jwtCookie.Value)
 			if err != nil {
 				switch {
 				case errors.Is(err, authentication.ErrExpiredToken),

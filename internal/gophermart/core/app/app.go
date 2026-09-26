@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	authentication "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/auth"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/config"
@@ -19,7 +20,13 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
+	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
+	"github.com/shopspring/decimal"
+
+	balanceh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/handler"
+	balancerepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/repository"
+	balancesvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/service"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -31,12 +38,19 @@ type App struct {
 	Pgxpool *pgxpool.Pool
 }
 
+const (
+	defaultJWTKey = "super-secret-key"
+)
+
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 
+	// Отключаем кавычки при JSON-сериализации decimal.Decimal,
+	// чтобы баланс отдавался числом (500.5), а не строкой ("500.5").
+	decimal.MarshalJSONWithoutQuotes = true
 	// Root router
 	rootRouter := chi.NewRouter()
 
-	pool, err := postgres.New(*cfg.DB, log)
+	pool, err := postgres.New(*cfg.DB, log, gophermartMigrations.EmbedMigrations)
 	if err != nil {
 		log.Error("failed to create db connection pool", "err", err)
 		return nil, fmt.Errorf("database initialize: %w", err)
@@ -45,32 +59,48 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
 
 	limiter := ratelimit.NewRLS(ctx, cfg.RLS, log)
-	tokenBuilder := authentication.NewJWTBuilder([]byte("temp-secret-key"))
-	tokenValidator := authentication.NewUserIDParser([]byte("temp-secret-key"))
+
+	var (
+		jwtSecret string
+	)
+
+	jwtSecret = os.Getenv("S_JWT")
+
+	if jwtSecret == "" {
+		jwtSecret = defaultJWTKey
+	}
+
+	tokenSvc := authentication.New([]byte(jwtSecret))
 	passHasher := new(passhasher.Argon2Hasher)
 
 	userRepo := userrepo.New(pool)
 	orderRepo := orderrepo.New(pool)
-	// balanceRepo
+	balanceRepo := balancerepo.New(pool)
 
-	userSvc := usersvc.New(userRepo, tokenBuilder, passHasher)
+	userSvc := usersvc.New(userRepo, tokenSvc, passHasher)
 	orderSvc := ordersvc.New(orderRepo, log)
-	// balanceService
+	balanceSvc := balancesvc.New(balanceRepo)
 
 	userHandler := userh.New(log, userSvc)
 	orderHandler := orderh.New(log, orderSvc)
-	// balanceHandler
+	balanceHandler := balanceh.New(log, balanceSvc)
 
 	dependencies := deps.New(
 		userHandler,
 		orderHandler,
-		tokenValidator,
+		balanceHandler,
+		tokenSvc,
 		limiter,
 		cfg,
 		log,
 	)
 
-	rootRouter.Use(chimiddleware.Recoverer, middleware.RequestID(), middleware.Logging(log))
+	rootRouter.Use(
+		chimiddleware.Recoverer,
+		middleware.RequestID(),
+		middleware.Logging(log),
+		middleware.GzipCompress(),
+	)
 
 	// Регистрируем все маршруты здесь
 	router.SetupRoutes(rootRouter, dependencies)

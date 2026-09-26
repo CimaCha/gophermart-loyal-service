@@ -84,21 +84,27 @@ func TestParser_ValidateUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewUserIDParser(tt.secret).ValidateUserID(tt.token())
+			gotID, err := New(tt.secret).ValidateToken(tt.token())
+
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
-				require.Equal(t, uuid.Nil, got)
+				require.Equal(t, uuid.Nil, gotID)
 				return
 			}
+
 			require.NoError(t, err)
-			require.Equal(t, tt.wantID, got)
+			require.Equal(t, tt.wantID, gotID)
 		})
 	}
 }
 
 func signClaims(t *testing.T, method jwt.SigningMethod, secret []byte, claims Claims) string {
 	t.Helper()
-	token, err := jwt.NewWithClaims(method, claims).SignedString(secret)
+
+	token := jwt.NewWithClaims(method, claims)
+
+	tokenString, err := token.SignedString(secret)
 	require.NoError(t, err)
-	return token
+
+	return tokenString
 }

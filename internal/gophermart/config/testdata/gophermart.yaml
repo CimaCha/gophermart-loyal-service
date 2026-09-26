@@ -1,0 +1,18 @@
+logger:
+  directory: logs
+
+  stdout:
+    enabled: true
+    format: text
+    level: info
+
+rate_limit:
+  cleanup_interval: 1m
+
+  register:
+    requests: 5
+    period: 1m
+
+  login:
+    requests: 10
+    period: 1m

@@ -40,17 +40,17 @@ func (m *MockTokenValidator) EXPECT() *MockTokenValidatorMockRecorder {
 	return m.recorder
 }
 
-// ValidateUserID mocks base method.
-func (m *MockTokenValidator) ValidateUserID(jwt string) (uuid.UUID, error) {
+// ValidateToken mocks base method.
+func (m *MockTokenValidator) ValidateToken(tokenString string) (uuid.UUID, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateUserID", jwt)
+	ret := m.ctrl.Call(m, "ValidateToken", tokenString)
 	ret0, _ := ret[0].(uuid.UUID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ValidateUserID indicates an expected call of ValidateUserID.
-func (mr *MockTokenValidatorMockRecorder) ValidateUserID(jwt any) *gomock.Call {
+// ValidateToken indicates an expected call of ValidateToken.
+func (mr *MockTokenValidatorMockRecorder) ValidateToken(tokenString any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateUserID", reflect.TypeOf((*MockTokenValidator)(nil).ValidateUserID), jwt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateToken", reflect.TypeOf((*MockTokenValidator)(nil).ValidateToken), tokenString)
 }

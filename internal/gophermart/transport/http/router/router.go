@@ -11,12 +11,13 @@ func SetupRoutes(r chi.Router, deps *deps.Dependencies) {
 		registerUserRoutes(r, deps)
 
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(deps.Tv))
+			r.Use(middleware.AuthMiddleware(deps.TokenSvc))
 
 			r.Route("/orders", func(r chi.Router) {
 				registerOrderRoutes(r, deps)
 			})
 
+			registerBalanceRoutes(r, deps)
 		})
 	})
 }
