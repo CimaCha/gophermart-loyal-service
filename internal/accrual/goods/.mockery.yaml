@@ -1,7 +1,7 @@
 all: false
 
-dir: '{{.InterfaceDir}}'
-filename: mocks_{{.InterfaceName}}.go
+dir: '{{.InterfaceDir}}/mock'
+filename: mocks_{{.InterfaceName}}.gen.go
 force-file-write: true
 formatter: goimports
 
