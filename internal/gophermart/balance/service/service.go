@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/model"
-	"github.com/CimaCha/gophermart-loyal-service/pkg/luhn"
 	"github.com/google/uuid"
 
 	"github.com/shopspring/decimal"
@@ -35,11 +34,9 @@ func (s *BalanceService) Withdraw(
 	orderNum string,
 	sum decimal.Decimal,
 ) error {
-	if !luhn.Validate(orderNum) {
-		return model.ErrInvalidOrderNumber
-	}
-	if sum.IsZero() || sum.IsNegative() {
-		return model.ErrInvalidOrderNumber
+	req := model.WithdrawRequest{Order: orderNum, Sum: sum}
+	if err := req.Validate(); err != nil {
+		return err
 	}
 	return s.repo.Withdraw(ctx, userID, orderNum, sum)
 }
