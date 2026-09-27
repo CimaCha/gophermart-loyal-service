@@ -48,10 +48,10 @@ func TestCreateOrder_Success(t *testing.T) {
 	repo := newRepo(t)
 
 	var (
-		expectedOrderNum                     = "12345678903"
-		expectedUserID                       = uuid.New()
-		expectedStatus     model.OrderStatus = model.OrderStatusNew
-		expectedUploadedAt                   = time.Now().UTC()
+		expectedOrderNum   = "12345678903"
+		expectedUserID     = uuid.New()
+		expectedStatus     = model.OrderStatusNew
+		expectedUploadedAt = time.Now().UTC()
 	)
 
 	userQuery := `INSERT INTO users (id, login, password_hash) VALUES ($1, $2, $3)`
