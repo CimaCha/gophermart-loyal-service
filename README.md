@@ -9,9 +9,10 @@
 
 - [Архитектура](#архитектура)
 - [Структура репозитория](#структура-репозитория)
-- [Быстрый старт](#быстрый-старт)
+- [Быстрый старт](#запустить-приложение)
 - [Конфигурация](#конфигурация)
 - [API](#api)
+- [Background worker](#background-worker)
 - [Этапы реализации](#этапы-реализации)
 - [Тестирование](#тестирование)
 
@@ -36,72 +37,27 @@ gophermart API ──▶ gophermart DB
 background worker ──HTTP──▶ accrual API ──▶ accrual DB
 ```
 
-## Структура репозитория
+Общая схема gophermart:
 
-```
-cmd/
-  gophermart/          # точка входа накопительной системы
-    main.go
-  accrual/             # точка входа системы расчёта баллов
-    main.go
+![Gophermart architecture](docs/gophermart.svg)
 
-internal/
-  gophermart/
-    user/               # регистрация, аутентификация
-      handler/
-      service/
-      repository/
-      model/
-    order/              # приём и выдача номеров заказов
-      handler/
-      service/
-      repository/
-      model/
-    balance/            # баланс баллов, списания
-      handler/
-      service/
-      repository/
-      model/
-    core/
-      app/              # сборка зависимостей, точка композиции
-      router/           # регистрация HTTP-маршрутов по доменам
-      auth/             # JWT builder/parser
-      rls/              # rate limiter (in-memory)
-      db/postgres/
-      transport/http/
-        middleware/
-        response/
+## Background worker
 
-  accrual/
-    order/              # приём заказов, отдача статуса расчёта
-      handler/
-      service/
-      repository/
-    goods/               # регистрация механик вознаграждения
-      handler/
-      service/
-      repository/
-    core/
-      app/
-      router/
-      db/postgres/
+Worker отвечает за фоновую обработку заказов: получение статусов из accrual,
+обновление состояния заказа и начисление баллов пользователю.
 
-  shared/                 # код, общий для обоих сервисов
-    luhn/                 # валидация номера заказа алгоритмом Луна
-    passhasher/           # хеширование паролей
+Он запускается внутри `gophermart` и работает независимо от HTTP API.
 
-migrations/
-  gophermart/
-  accrual/
+Основные этапы:
 
-config/
-  gophermart.yaml
-  accrual.yaml
-```
+1. Получение заказа из очереди уведомлений или через polling.
+2. Запрос текущего статуса в accrual.
+3. Обновление статуса заказа.
+4. Начисление баллов после успешной обработки.
 
-> Оба сервиса используют одну и ту же кодовую базу (monorepo), но полностью
-> изолированы по `internal/<service>/...` — это не нарушает правило видимости
-> `internal` в Go, так как ограничение действует только за пределами модуля.
+Схема работы worker:
+
+![Worker](docs/worker.svg)
 
 ### Требования
 
@@ -132,13 +88,29 @@ config/
 логирование) задаётся через `config/*.yaml`:
 
 ```yaml
-rate_limits:
-  register:
-    window: 1h
-    max_requests: 5
-  login:
-    window: 3m
-    max_requests: 10
+directory: logs/gophermart
+
+stdout:
+  enabled: true
+  format: text
+  level: info
+
+files:
+  - name: app
+    enabled: true
+    format: json
+    level: debug
+
+cleanup_interval: 5m
+
+register:
+  key_prefix: register
+  window: 1m
+  max_requests: 5
+login:
+  key_prefix: login
+  window: 3m
+  max_requests: 10
 ```
 
 ## API
@@ -172,12 +144,12 @@ rate_limits:
 - [x] JWT: построение и валидация токена
 - [x] User: регистрация и аутентификация
 - [x] Order: приём и выдача списка заказов
-- [ ] Balance: баланс и списание баллов
+- [x] Balance: баланс и списание баллов
 - [ ] Accrual: HTTP API (`/api/orders/{number}`, `/api/orders`, `/api/goods`)
 - [ ] Accrual: асинхронный расчёт вознаграждений (матчинг по `match`)
-- [ ] Background worker в gophermart: опрос accrual, обработка `429 Retry-After`
+- [x] Background worker в gophermart: опрос accrual, обработка `429 Retry-After`
 - [ ] Rate limiting на accrual API
-- [ ] Интеграционные тесты (БД, HTTP)
+- [x] Интеграционные тесты (БД, HTTP)
 - [ ] Юнит-тесты — покрытие ≥ 60%
 - [ ] Документация по экспортируемым сущностям
 
