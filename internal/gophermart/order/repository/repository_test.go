@@ -48,10 +48,10 @@ func TestCreateOrder_Success(t *testing.T) {
 	repo := newRepo(t)
 
 	var (
-		expectedOrderNum   int64 = 12345678903
-		expectedUserID           = uuid.New()
-		expectedStatus           = "NEW"
-		expectedUploadedAt       = time.Now().UTC()
+		expectedOrderNum   = "12345678903"
+		expectedUserID     = uuid.New()
+		expectedStatus     = model.OrderStatusNew
+		expectedUploadedAt = time.Now().UTC()
 	)
 
 	userQuery := `INSERT INTO users (id, login, password_hash) VALUES ($1, $2, $3)`
@@ -114,9 +114,9 @@ func TestCreateOrder_OrderAlreadyProcessing(t *testing.T) {
 	require.NoError(t, err)
 
 	order := &model.Order{
-		OrderNum:   12345678903,
+		OrderNum:   "12345678903",
 		UserID:     userID,
-		Status:     "NEW",
+		Status:     model.OrderStatusNew,
 		UploadedAt: time.Now().UTC(),
 	}
 
@@ -153,18 +153,18 @@ func TestCreateOrder_OrderAlreadyCreatedByAnotherUser(t *testing.T) {
 	}
 
 	firstOrder := &model.Order{
-		OrderNum:   12345678903,
+		OrderNum:   "12345678903",
 		UserID:     users[0].UserID,
-		Status:     "NEW",
+		Status:     model.OrderStatusNew,
 		UploadedAt: time.Now().UTC(),
 	}
 
 	require.NoError(t, repo.CreateOrder(ctx, firstOrder))
 
 	secondOrder := &model.Order{
-		OrderNum:   12345678903,
+		OrderNum:   "12345678903",
 		UserID:     users[1].UserID,
-		Status:     "NEW",
+		Status:     model.OrderStatusNew,
 		UploadedAt: time.Now().UTC(),
 	}
 
@@ -212,21 +212,21 @@ func TestGetOrders_Success(t *testing.T) {
 			($6,$7,$8,$9,$10),
 			($11,$12,$13,$14,$15)
 	`,
-		12345678903, userID, "NEW", nil, oldTime,
-		79927398713, userID, "PROCESSED", nil, newTime,
-		11111111111, anotherUserID, "NEW", nil, oldTime,
+		"12345678903", userID, model.OrderStatusNew, nil, oldTime,
+		"79927398713", userID, model.OrderStatusProcessed, nil, newTime,
+		"11111111111", anotherUserID, model.OrderStatusNew, nil, oldTime,
 	)
 	require.NoError(t, err)
 
 	expected := []model.Order{
 		{
-			OrderNum:   12345678903,
-			Status:     "NEW",
+			OrderNum:   "12345678903",
+			Status:     model.OrderStatusNew,
 			UploadedAt: oldTime,
 		},
 		{
-			OrderNum:   79927398713,
-			Status:     "PROCESSED",
+			OrderNum:   "79927398713",
+			Status:     model.OrderStatusProcessed,
 			UploadedAt: newTime,
 		},
 	}

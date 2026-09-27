@@ -26,10 +26,6 @@ template: testify
 template-schema: '{{.Template}}.schema.json'
 
 packages:
-  github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/handler:
-    config:
-      all: true
-
-  github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/service:
+  github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker:
     config:
       all: true

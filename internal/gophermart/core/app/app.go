@@ -73,12 +73,16 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	tokenSvc := authentication.New([]byte(jwtSecret))
 	passHasher := new(passhasher.Argon2Hasher)
 
+	// accrualClient
+
 	userRepo := userrepo.New(pool)
 	orderRepo := orderrepo.New(pool)
 	balanceRepo := balancerepo.New(pool)
 
+	// backgroundWorker
+
 	userSvc := usersvc.New(userRepo, tokenSvc, passHasher)
-	orderSvc := ordersvc.New(orderRepo, log)
+	orderSvc := ordersvc.New(orderRepo, log, nil) // Notifier TODO (worker)
 	balanceSvc := balancesvc.New(balanceRepo)
 
 	userHandler := userh.New(log, userSvc)
