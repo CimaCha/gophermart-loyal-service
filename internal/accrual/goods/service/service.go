@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	model2 "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 )
 
 type GoodsRepository interface {
-	RegisterGoods(ctx context.Context, goods model2.GoodsInfo) error
+	RegisterGoods(ctx context.Context, goods model.GoodsInfo) error
 }
 
 type GoodsService struct {
@@ -19,7 +19,7 @@ func New(userRepo GoodsRepository) *GoodsService {
 	}
 }
 
-func (s *GoodsService) RegisterGoods(ctx context.Context, goods model2.GoodsInfo) error {
+func (s *GoodsService) RegisterGoods(ctx context.Context, goods model.GoodsInfo) error {
 	//TODO
 	return nil
 }

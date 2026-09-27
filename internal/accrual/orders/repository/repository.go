@@ -17,13 +17,18 @@ func New(pool *pgxpool.Pool) *OrderRepository {
 	}
 }
 
-func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
+func (r *OrderRepository) GetOrder(ctx context.Context, uid uuid.UUID) (model.Order, error) {
 	//TODO
-	return nil, nil
+	return model.Order{}, nil
 }
 
 func (r *OrderRepository) CreateOrder(ctx context.Context, order *model.Order) error {
 	//TODO
 	return nil
 
+}
+
+func (r *OrderRepository) UpdateOrder(ctx context.Context, order *model.Order) error {
+	//TODO
+	return nil
 }

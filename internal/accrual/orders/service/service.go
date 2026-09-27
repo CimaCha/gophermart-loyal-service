@@ -9,7 +9,8 @@ import (
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *model.Order) error
-	GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error)
+	GetOrder(ctx context.Context, uid uuid.UUID) (model.Order, error)
+	UpdateOrder(ctx context.Context, order *model.Order) error
 }
 
 type OrderService struct {
@@ -27,13 +28,12 @@ func New(
 	}
 }
 
-func (s *OrderService) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
+func (s *OrderService) GetOrder(ctx context.Context, uid uuid.UUID) (model.Order, error) {
 	//TODO
-	return nil, nil
+	return model.Order{}, nil
 }
 
-func (s *OrderService) UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error {
+func (s *OrderService) UploadOrder(ctx context.Context, order model.Order) error {
 	//TODO
 	return nil
-
 }

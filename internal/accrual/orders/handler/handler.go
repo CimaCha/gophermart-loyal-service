@@ -2,20 +2,20 @@ package handler
 
 import (
 	"context"
-	model2 "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
 	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
 )
 
 type OrderService interface {
-	UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error
-	GetOrders(ctx context.Context, uid uuid.UUID) ([]model2.Order, error)
+	UploadOrder(ctx context.Context, order model.Order) error
+	GetOrder(ctx context.Context, uid uuid.UUID) (model.Order, error)
 }
 
 type Handler struct {
-	l   *slog.Logger
-	svc OrderService
+	logger  *slog.Logger
+	service OrderService
 }
 
 func New(
@@ -23,8 +23,8 @@ func New(
 	service OrderService,
 ) *Handler {
 	return &Handler{
-		l:   log,
-		svc: service,
+		logger:  log,
+		service: service,
 	}
 }
 

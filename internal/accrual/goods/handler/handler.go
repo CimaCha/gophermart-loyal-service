@@ -2,7 +2,7 @@ package handler
 
 import (
 	"context"
-	model2 "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 	"log/slog"
 	"net/http"
 )
@@ -12,7 +12,7 @@ const maxBodySize = 32
 //go:generate go tool mockgen -source=handler.go -destination=mock/user_service_gen.go -package=mock
 
 type GoodsService interface {
-	RegisterGoods(ctx context.Context, goods model2.GoodsInfo) error
+	RegisterGoods(ctx context.Context, goods model.GoodsInfo) error
 }
 
 type Handler struct {

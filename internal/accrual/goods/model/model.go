@@ -1,5 +1,7 @@
 package model
 
+import "github.com/shopspring/decimal"
+
 type RewardType string
 
 const (
@@ -9,6 +11,6 @@ const (
 
 type GoodsInfo struct {
 	Match      string
-	Reward     int
+	Reward     *decimal.Decimal
 	RewardType string
 }
