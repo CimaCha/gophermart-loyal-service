@@ -21,6 +21,8 @@ func mustDecimal(s string) decimal.Decimal {
 	return d
 }
 
+// TestService_GetBalance_Success проверяет, что сервис возвращает баланс,
+// полученный от репозитория, без изменений.
 func TestService_GetBalance_Success(t *testing.T) {
 	userID := uuid.New()
 	expected := model.Balance{
@@ -41,6 +43,8 @@ func TestService_GetBalance_Success(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
+// TestService_GetBalance_RepoError проверяет, что ошибка репозитория
+// пробрасывается наверх без оборачивания.
 func TestService_GetBalance_RepoError(t *testing.T) {
 	userID := uuid.New()
 	repoErr := errors.New("db is down")
@@ -53,5 +57,58 @@ func TestService_GetBalance_RepoError(t *testing.T) {
 	_, err := svc.GetBalance(context.Background(), userID)
 
 	require.ErrorIs(t, err, repoErr)
+	repo.AssertExpectations(t)
+}
+
+// TestService_Withdraw_Success проверяет успешный сценарий:
+// валидный номер и сумма, репозиторий вызван с теми же аргументами.
+func TestService_Withdraw_Success(t *testing.T) {
+	userID := uuid.New()
+	repo := NewMockBalanceRepository(t)
+	repo.On("Withdraw", context.Background(), userID, "12345678903", mustDecimal("100")).
+		Return(nil)
+
+	svc := New(repo)
+	err := svc.Withdraw(context.Background(), userID, "12345678903", mustDecimal("100"))
+
+	require.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+// TestService_Withdraw_InvalidLuhn проверяет, что номер, не прошедший Луна,
+// отклоняется с ErrInvalidOrderNumber, репозиторий не вызывается.
+func TestService_Withdraw_InvalidLuhn(t *testing.T) {
+	repo := NewMockBalanceRepository(t)
+	svc := New(repo)
+
+	err := svc.Withdraw(context.Background(), uuid.New(), "12345678904", mustDecimal("100"))
+
+	require.ErrorIs(t, err, model.ErrInvalidOrderNumber)
+
+}
+
+// TestService_Withdraw_ZeroSum проверяет, что нулевая сумма отклоняется
+// с ErrInvalidOrderNumber до обращения к репозиторию.
+func TestService_Withdraw_ZeroSum(t *testing.T) {
+	repo := NewMockBalanceRepository(t)
+	svc := New(repo)
+
+	err := svc.Withdraw(context.Background(), uuid.New(), "12345678903", decimal.Zero)
+
+	require.ErrorIs(t, err, model.ErrInvalidOrderNumber)
+}
+
+// TestService_Withdraw_InsufficientFunds проверяет, что ошибка
+// ErrInsufficientFunds от репозитория пробрасывается наверх как есть.
+func TestService_Withdraw_InsufficientFunds(t *testing.T) {
+	userID := uuid.New()
+	repo := NewMockBalanceRepository(t)
+	repo.On("Withdraw", context.Background(), userID, "12345678903", mustDecimal("100")).
+		Return(model.ErrInsufficientFunds)
+
+	svc := New(repo)
+	err := svc.Withdraw(context.Background(), userID, "12345678903", mustDecimal("100"))
+
+	require.ErrorIs(t, err, model.ErrInsufficientFunds)
 	repo.AssertExpectations(t)
 }

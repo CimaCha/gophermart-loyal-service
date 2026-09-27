@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -38,6 +39,8 @@ func newTestLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// TestHandler_GetBalance_Success проверяет успешный сценарий:
+// userID есть в контексте, сервис вернул баланс, хендлер отдал 200 и JSON.
 func TestHandler_GetBalance_Success(t *testing.T) {
 	userID := uuid.New()
 	expected := model.Balance{
@@ -67,6 +70,8 @@ func TestHandler_GetBalance_Success(t *testing.T) {
 	svc.AssertExpectations(t)
 }
 
+// TestHandler_GetBalance_NoUserID проверяет, что без userID в контексте
+// хендлер возвращает 401 Unauthorized.
 func TestHandler_GetBalance_NoUserID(t *testing.T) {
 	svc := NewMockBalanceService(t)
 	h := New(newTestLogger(), svc)
@@ -79,6 +84,8 @@ func TestHandler_GetBalance_NoUserID(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
+// TestHandler_GetBalance_ServiceError проверяет, что любая ошибка сервиса
+// превращается в 500 Internal Server Error.
 func TestHandler_GetBalance_ServiceError(t *testing.T) {
 	userID := uuid.New()
 	svc := NewMockBalanceService(t)
@@ -92,6 +99,143 @@ func TestHandler_GetBalance_ServiceError(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	h.GetBalance(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+// TestHandler_Withdraw_Success проверяет успешный сценарий:
+// валидный заказ и сумма, сервис вернул nil, хендлер отдал 200.
+func TestHandler_Withdraw_Success(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("Withdraw", mock.Anything, userID, "12345678903", mustDecimal("100")).
+		Return(nil)
+
+	h := New(newTestLogger(), svc)
+
+	body := `{"order":"12345678903","sum":100}`
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+// TestHandler_Withdraw_NoUserID проверяет, что без userID в контексте
+// хендлер возвращает 401 Unauthorized и не вызывает сервис.
+func TestHandler_Withdraw_NoUserID(t *testing.T) {
+	svc := NewMockBalanceService(t)
+	h := New(newTestLogger(), svc)
+
+	body := `{"order":"12345678903","sum":100}`
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+// TestHandler_Withdraw_InvalidJSON проверяет, что невалидное тело запроса
+// возвращает 400 Bad Request.
+func TestHandler_Withdraw_InvalidJSON(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	h := New(newTestLogger(), svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(`not json`))
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+// TestHandler_Withdraw_InvalidOrder проверяет, что неверный номер заказа
+// (не прошедший Луна) возвращает 422 Unprocessable Entity.
+func TestHandler_Withdraw_InvalidOrder(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("Withdraw", mock.Anything, userID, "12345678904", mock.Anything).
+		Return(model.ErrInvalidOrderNumber)
+
+	h := New(newTestLogger(), svc)
+
+	body := `{"order":"12345678904","sum":100}`
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(body))
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+// TestHandler_Withdraw_InsufficientFunds проверяет, что недостаток средств
+// на балансе возвращает 402 Payment Required.
+func TestHandler_Withdraw_InsufficientFunds(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("Withdraw", mock.Anything, userID, "12345678903", mock.Anything).
+		Return(model.ErrInsufficientFunds)
+
+	h := New(newTestLogger(), svc)
+
+	body := `{"order":"12345678903","sum":100}`
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(body))
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusPaymentRequired, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+// TestHandler_Withdraw_OrderAlreadyUsed проверяет, что повторное использование
+// заказа для списания возвращает 409 Conflict.
+func TestHandler_Withdraw_OrderAlreadyUsed(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("Withdraw", mock.Anything, userID, "12345678903", mock.Anything).
+		Return(model.ErrOrderAlreadyUsed)
+
+	h := New(newTestLogger(), svc)
+
+	body := `{"order":"12345678903","sum":100}`
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(body))
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+// TestHandler_Withdraw_InternalError проверяет, что любая неизвестная ошибка
+// сервиса превращается в 500 Internal Server Error.
+func TestHandler_Withdraw_InternalError(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("Withdraw", mock.Anything, userID, "12345678903", mock.Anything).
+		Return(errors.New("unexpected failure"))
+
+	h := New(newTestLogger(), svc)
+
+	body := `{"order":"12345678903","sum":100}`
+	req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", strings.NewReader(body))
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	svc.AssertExpectations(t)

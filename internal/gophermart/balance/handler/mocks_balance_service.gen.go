@@ -9,6 +9,7 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/model"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -110,6 +111,75 @@ func (_c *MockBalanceService_GetBalance_Call) Return(balance model.Balance, err 
 }
 
 func (_c *MockBalanceService_GetBalance_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (model.Balance, error)) *MockBalanceService_GetBalance_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Withdraw provides a mock function for the type MockBalanceService
+func (_mock *MockBalanceService) Withdraw(ctx context.Context, userID uuid.UUID, orderNum string, sum decimal.Decimal) error {
+	ret := _mock.Called(ctx, userID, orderNum, sum)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Withdraw")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, decimal.Decimal) error); ok {
+		r0 = returnFunc(ctx, userID, orderNum, sum)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBalanceService_Withdraw_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Withdraw'
+type MockBalanceService_Withdraw_Call struct {
+	*mock.Call
+}
+
+// Withdraw is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - orderNum string
+//   - sum decimal.Decimal
+func (_e *MockBalanceService_Expecter) Withdraw(ctx any, userID any, orderNum any, sum any) *MockBalanceService_Withdraw_Call {
+	return &MockBalanceService_Withdraw_Call{Call: _e.mock.On("Withdraw", ctx, userID, orderNum, sum)}
+}
+
+func (_c *MockBalanceService_Withdraw_Call) Run(run func(ctx context.Context, userID uuid.UUID, orderNum string, sum decimal.Decimal)) *MockBalanceService_Withdraw_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 decimal.Decimal
+		if args[3] != nil {
+			arg3 = args[3].(decimal.Decimal)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBalanceService_Withdraw_Call) Return(err error) *MockBalanceService_Withdraw_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBalanceService_Withdraw_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, orderNum string, sum decimal.Decimal) error) *MockBalanceService_Withdraw_Call {
 	_c.Call.Return(run)
 	return _c
 }
