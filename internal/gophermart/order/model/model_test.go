@@ -12,21 +12,21 @@ import (
 func TestOrder_Validate(t *testing.T) {
 	tests := []struct {
 		name     string
-		orderNum int64
+		orderNum string
 		wantErr  error
 	}{
 		{
 			name:     "valid order",
-			orderNum: 79927398713,
+			orderNum: "79927398713",
 		},
 		{
 			name:     "negative order",
-			orderNum: -1,
-			wantErr:  errors.New("order id must be positive"),
+			orderNum: "-1",
+			wantErr:  ErrInvalidOrderNumber,
 		},
 		{
 			name:     "invalid checksum",
-			orderNum: 79927398714,
+			orderNum: "79927398714",
 			wantErr:  ErrInvalidOrderNumber,
 		},
 	}

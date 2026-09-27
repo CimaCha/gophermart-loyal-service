@@ -219,12 +219,12 @@ func TestHandler_GetOrders_Success(t *testing.T) {
 
 	orders := []model.Order{
 		{
-			OrderNum:   79927398713,
+			OrderNum:   "79927398713",
 			Status:     "NEW",
 			UploadedAt: time.Date(2025, 1, 10, 12, 0, 0, 0, time.UTC),
 		},
 		{
-			OrderNum:   12345678903,
+			OrderNum:   "12345678903",
 			Status:     "PROCESSING",
 			UploadedAt: time.Date(2025, 1, 11, 12, 0, 0, 0, time.UTC),
 		},

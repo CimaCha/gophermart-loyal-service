@@ -2,7 +2,6 @@ package model
 
 import (
 	"errors"
-	"strconv"
 	"time"
 
 	"github.com/CimaCha/gophermart-loyal-service/pkg/luhn"
@@ -14,15 +13,28 @@ var (
 	ErrInvalidOrderNumber = errors.New("invalid order number checksum")
 )
 
+type OrderStatus string
+
+const (
+	OrderStatusNew        OrderStatus = "NEW"
+	OrderStatusProcessing OrderStatus = "PROCESSING"
+	OrderStatusProcessed  OrderStatus = "PROCESSED"
+	OrderStatusInvalid    OrderStatus = "INVALID"
+)
+
+func (ost OrderStatus) String() string {
+	return string(ost)
+}
+
 type Order struct {
-	OrderNum   int64
+	OrderNum   string
 	UserID     uuid.UUID
-	Status     string
+	Status     OrderStatus
 	Accrual    *decimal.Decimal
 	UploadedAt time.Time
 }
 
-func NewOrder(orderNum int64, uid uuid.UUID) *Order {
+func NewOrder(orderNum string, uid uuid.UUID) *Order {
 	return &Order{
 		OrderNum:   orderNum,
 		UserID:     uid,
@@ -32,10 +44,7 @@ func NewOrder(orderNum int64, uid uuid.UUID) *Order {
 	}
 }
 func (o *Order) Validate() (*Order, error) {
-	if o.OrderNum < 0 {
-		return nil, errors.New("order id must be positive")
-	}
-	if !luhn.Validate(strconv.FormatInt(o.OrderNum, 10)) {
+	if !luhn.Validate(o.OrderNum) {
 		return nil, ErrInvalidOrderNumber
 	}
 	return o, nil

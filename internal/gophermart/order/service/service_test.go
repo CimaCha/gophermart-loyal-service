@@ -15,23 +15,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(t *testing.T) (*OrderService, *MockOrderRepository) {
+func newTestService(t *testing.T) (*OrderService, *MockOrderRepository, *MockOrderNotifier) {
 	t.Helper()
 
 	repo := NewMockOrderRepository(t)
+	notifier := NewMockOrderNotifier(t)
 
 	logger := slog.New(
 		slog.NewTextHandler(io.Discard, nil),
 	)
 
-	return New(repo, logger), repo
+	return New(repo, logger, notifier), repo, notifier
 }
 
 // UploadOrder
 func TestService_UploadOrder_Success(t *testing.T) {
-	svc, repo := newTestService(t)
+	svc, repo, notif := newTestService(t)
 
 	uid := uuid.New()
+	orderNumber := "79927398713"
 
 	repo.EXPECT().
 		CreateOrder(
@@ -40,9 +42,12 @@ func TestService_UploadOrder_Success(t *testing.T) {
 		).
 		Return(nil)
 
+	notif.EXPECT().
+		Notify(mock.AnythingOfType("model.Order"))
+
 	err := svc.UploadOrder(
 		context.Background(),
-		"79927398713",
+		orderNumber,
 		uid,
 	)
 
@@ -50,7 +55,7 @@ func TestService_UploadOrder_Success(t *testing.T) {
 }
 
 func TestService_UploadOrder_InvalidOrder(t *testing.T) {
-	svc, _ := newTestService(t)
+	svc, _, _ := newTestService(t)
 
 	err := svc.UploadOrder(
 		context.Background(),
@@ -62,7 +67,7 @@ func TestService_UploadOrder_InvalidOrder(t *testing.T) {
 }
 
 func TestService_UploadOrder_OrderAlreadyProcessing(t *testing.T) {
-	svc, repo := newTestService(t)
+	svc, repo, _ := newTestService(t)
 
 	repo.EXPECT().
 		CreateOrder(
@@ -81,7 +86,7 @@ func TestService_UploadOrder_OrderAlreadyProcessing(t *testing.T) {
 }
 
 func TestService_UploadOrder_OrderAlreadyCreatedByAnotherUser(t *testing.T) {
-	svc, repo := newTestService(t)
+	svc, repo, _ := newTestService(t)
 
 	repo.EXPECT().
 		CreateOrder(
@@ -101,13 +106,13 @@ func TestService_UploadOrder_OrderAlreadyCreatedByAnotherUser(t *testing.T) {
 
 // GetOrders
 func TestService_GetOrders_Success(t *testing.T) {
-	svc, repo := newTestService(t)
+	svc, repo, _ := newTestService(t)
 
 	uid := uuid.New()
 
 	expected := []model.Order{
 		{
-			OrderNum: 79927398713,
+			OrderNum: "79927398713",
 			Status:   "NEW",
 		},
 	}
@@ -129,7 +134,7 @@ func TestService_GetOrders_Success(t *testing.T) {
 }
 
 func TestService_GetOrders_RepositoryError(t *testing.T) {
-	svc, repo := newTestService(t)
+	svc, repo, _ := newTestService(t)
 
 	uid := uuid.New()
 

@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -204,8 +203,8 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 func toOrderResponse(o model.Order) OrderResponse {
 	return OrderResponse{
-		OrderNum:   strconv.FormatInt(o.OrderNum, 10),
-		Status:     o.Status,
+		OrderNum:   o.OrderNum,
+		Status:     o.Status.String(),
 		Accrual:    o.Accrual,
 		UploadedAt: o.UploadedAt,
 	}

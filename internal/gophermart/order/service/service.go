@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/model"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/repository"
 	"github.com/google/uuid"
 )
+
+type OrderNotifier interface {
+	Notify(order model.Order)
+}
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *model.Order) error
@@ -18,8 +21,9 @@ type OrderRepository interface {
 }
 
 type OrderService struct {
-	repo OrderRepository
-	l    *slog.Logger
+	repo     OrderRepository
+	l        *slog.Logger
+	notifier OrderNotifier
 }
 
 var (
@@ -32,10 +36,12 @@ var (
 func New(
 	repo OrderRepository,
 	log *slog.Logger,
+	notifier OrderNotifier,
 ) *OrderService {
 	return &OrderService{
-		repo: repo,
-		l:    log,
+		repo:     repo,
+		l:        log,
+		notifier: notifier,
 	}
 }
 
@@ -51,12 +57,7 @@ func (s *OrderService) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Or
 
 func (s *OrderService) UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error {
 
-	orderNum, err := strconv.ParseInt(orderNumStr, 10, 64)
-	if err != nil {
-		return ErrInvalidOrderNum
-	}
-
-	order, err := model.NewOrder(orderNum, uid).Validate()
+	order, err := model.NewOrder(orderNumStr, uid).Validate()
 	if err != nil {
 		return ErrInvalidOrderNum
 	}
@@ -71,6 +72,8 @@ func (s *OrderService) UploadOrder(ctx context.Context, orderNumStr string, uid 
 			return fmt.Errorf("repository create order: %w", err)
 		}
 	}
+
+	s.notifier.Notify(*order)
 
 	return nil
 
