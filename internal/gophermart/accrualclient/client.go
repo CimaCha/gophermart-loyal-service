@@ -3,8 +3,9 @@ package accrualclient
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -41,11 +42,16 @@ const (
 	StatusProcessed Status = "PROCESSED"
 )
 
+const (
+	defaultRetryAfter = time.Minute
+	minRetryAfter     = time.Second
+)
+
 // ResultResponse - ответ от accrual сервиса, который содержит результат обработки заказа
 type ResultResponse struct {
 	// Номер заказа
 	Order string `json:"order"`
-	// Текущий статус обработки заказа
+	// Текущий статус обработки заказа из accrual
 	Status Status `json:"status"`
 	// Если расчёт был окончен - Accrual будет содержать количество баллов
 	// Которые необходимы к начислению
@@ -53,18 +59,22 @@ type ResultResponse struct {
 	Accrual *decimal.Decimal `json:"accrual,omitempty"`
 }
 
-var (
-	// ErrRateLimited возвращается при превышении лимита запросов к accrual (429)
-	ErrRateLimited = errors.New("too many requests")
-)
-
-func (s Status) String() string {
-	return string(s)
+// RateLimitError - кастомная ошибка возварщаемая наверх для обработки RetryAfter
+type RateLimitError struct {
+	RetryAfter time.Duration
 }
 
 // Client предоставляет HTTP-клиента для взаимодействия с accrual сервисом
 type Client struct {
 	httpClient *resty.Client
+}
+
+func (s Status) String() string {
+	return string(s)
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("accrual: rate limited, retry after %s", e.RetryAfter)
 }
 
 // New создаёт экземпляр HTTP-клиента
@@ -104,9 +114,21 @@ func (c *Client) GetOrder(ctx context.Context, orderNum string) (*ResultResponse
 		}, nil
 	case 429:
 		retryAfter := resp.Header().Get("Retry-After")
-		return nil, fmt.Errorf("%w: retry after %s", ErrRateLimited, retryAfter)
+		return nil, &RateLimitError{
+			RetryAfter: parseRetryAfter(retryAfter),
+		}
 	default:
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
+}
+
+func parseRetryAfter(h string) time.Duration {
+	d := defaultRetryAfter
+	if secs, err := strconv.Atoi(h); err == nil && secs >= 0 {
+		d = time.Duration(secs) * time.Second
+	} else if t, err := http.ParseTime(h); err == nil {
+		d = time.Until(t)
+	}
+	return max(d, minRetryAfter)
 }
