@@ -1,6 +1,6 @@
 # Worker
 
-![Worker architecture](images/worker.png)
+![Worker architecture](images/worker.svg)
 
 Worker отвечает за синхронизацию заказов Gophermart с внешней системой **Accrual**.
 
