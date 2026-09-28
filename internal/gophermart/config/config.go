@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
@@ -16,6 +17,7 @@ type Config struct {
 	DB     *postgres.Config
 	Logger *slogger.Config
 	RLS    *ratelimit.Config
+	W      *worker.Config
 }
 
 type envParser interface {
@@ -62,11 +64,21 @@ func Load(args []string) (*Config, error) {
 		return nil, fmt.Errorf("rate limit config: %w", err)
 	}
 
+	workerConfig, err := worker.LoadFromYAML(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("backgorund worker config: %w", err)
+	}
+
+	if err := workerConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("worker config validate: %w", err)
+	}
+
 	return &Config{
 		Server: serverConfig,
 		DB:     dbConfig,
 		Logger: logConfig,
 		RLS:    rateLimitStorage,
+		W:      workerConfig,
 	}, nil
 
 }

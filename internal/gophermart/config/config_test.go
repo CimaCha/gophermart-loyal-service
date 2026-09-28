@@ -20,6 +20,7 @@ func TestLoad_Success(t *testing.T) {
 	require.NotNil(t, cfg.DB)
 	require.NotNil(t, cfg.Logger)
 	require.NotNil(t, cfg.RLS)
+	require.NotNil(t, cfg.W)
 }
 
 func TestLoad_UsesEnvConfigPath(t *testing.T) {

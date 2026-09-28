@@ -26,3 +26,9 @@ login:
   # withdraw:
   #   window: 5m
   #   max_requests: 20
+
+## BACKGROUND BOUNDED WORKER POOL CONFIG ##
+polling_interval: 15s
+worker_count: 16
+jobs_queue_size: 1024
+target_rps: 256

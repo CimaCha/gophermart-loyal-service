@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -12,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
-	"golang.org/x/sync/semaphore"
 )
 
 type OrderStore interface {
@@ -38,18 +38,20 @@ type Transactor interface {
 	BeginFunc(ctx context.Context, fn func(pgx.Tx) error) error
 }
 
+// Bounded worker
 type Worker struct {
-	// Для взаимодействия с другими сервисами
 	orders   OrderStore
 	balances BalanceAccruer
 	accrual  AccrualClient
-	// Интерфейс для выполнения транзакции в одном блоке
-	tx     Transactor
-	logger *slog.Logger
-	// Настройки для polling и семафора
+	tx       Transactor
+	logger   *slog.Logger
+
 	interval time.Duration
-	trigger  chan ordermodel.Order
-	sem      *semaphore.Weighted
+	workers  int
+	jobs     chan ordermodel.Order // канал джобсов для воркеров
+	inflight sync.Map              // потокобезопасный syns.Map для содержания очередей джобсов
+
+	gate *gate // закрываем запросы к accrual если схватили 429 (too many requests)
 }
 
 func New(
@@ -58,46 +60,100 @@ func New(
 	accrual AccrualClient,
 	tx Transactor,
 	logger *slog.Logger,
-	interval time.Duration,
-	maxConcurrent int64,
+	c *Config,
 ) *Worker {
 	return &Worker{
 		orders: orders, balances: balances, accrual: accrual, tx: tx,
-		logger: logger, interval: interval,
-		trigger: make(chan ordermodel.Order, 256),
-		sem:     semaphore.NewWeighted(maxConcurrent),
+		logger: logger, interval: c.PollingInterval, workers: c.WorkerCount,
+		jobs: make(chan ordermodel.Order, c.JobsQueueSize),
+
+		gate: newGate(c.TargetRPS, logger),
 	}
 }
 
-// Notify — неблокирующее уведомление, вызывается сразу после успешного создания
-// заказа. Принимает уже готовую структуру
-func (w *Worker) Notify(order ordermodel.Order) {
+// enqueue — кладёт джобы в очереди, не блокируая работу
+// Возвращает false если джоба уже в очереди или канал джобов полон
+func (w *Worker) enqueue(order ordermodel.Order) bool {
+	// гарантирует что не будет гонки с заказами - два одинаковых одновременно попасть в обработку не смогут
+	if _, loaded := w.inflight.LoadOrStore(order.OrderNum, struct{}{}); loaded {
+		return false
+	}
 	select {
-	case w.trigger <- order:
+	case w.jobs <- order:
+		return true
 	default:
+		// Елси канал джобов заполнен, мы удаляем его из очереди и возвращаем false
+		// чтобы в будущем мы ошибчно его не скипнули
+		w.inflight.Delete(order.OrderNum)
+		return false
+	}
+}
+
+// Notify отправляет сообщение воркеру, принимая order в качестве параметра
+func (w *Worker) Notify(order ordermodel.Order) {
+	if !w.enqueue(order) {
 		w.logger.Debug(
-			"trigger buffer full, falling back to polling",
+			"not enqueued, polling will pick it up",
 			"order_num", order.OrderNum,
 		)
 	}
 }
 
 // Run - запускает работу воркера
-// Воркер либо принимает order из канала либо по тикеру бежит в БД и ищет NEW или PROCESSING заказы
+// Воркер либо принимает order из канала (notify) либо по тикеру бежит в БД и ищет NEW или PROCESSING заказы
 func (w *Worker) Run(ctx context.Context) {
+	var wg sync.WaitGroup
+	// Запускает воркеров
+	for range w.workers {
+		wg.Go(func() {
+			w.workerLoop(ctx)
+		})
+	}
+	// Одноичный polling воркер который иногда бегает в БД
+	wg.Go(func() {
+		w.pollLoop(ctx)
+	})
+	// Гарантия того, что по gracefull shutdown дождёмся всех воркеров
+	wg.Wait()
+}
+
+func (w *Worker) workerLoop(ctx context.Context) {
+	for {
+		// Либо хэндлит ордер либо выходит по контексту
+		select {
+		case <-ctx.Done():
+			return
+		case order := <-w.jobs:
+			w.handle(ctx, order)
+		}
+	}
+}
+
+func (w *Worker) handle(ctx context.Context, order ordermodel.Order) {
+	// перед выходом освобождает ордер из очереди
+	defer w.inflight.Delete(order.OrderNum)
+	if err := w.processOrder(ctx, order); err != nil {
+		w.logger.Error(
+			"process order failed", "order_num",
+			order.OrderNum, "err", err,
+		)
+	}
+}
+
+func (w *Worker) pollLoop(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
+	// По тикеру бегает в БД и достаёт ордера с NEW или PROCESSING статусами
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case order := <-w.trigger:
-			w.dispatch(ctx, &wg, order)
 		case <-ticker.C:
+			// Если словили 429, то нет смысла ходить в БД
+			if w.gate.Remaining() > 0 {
+				continue
+			}
 			orders, err := w.orders.GetPendingOrders(ctx)
 			if err != nil {
 				w.logger.Error(
@@ -107,31 +163,36 @@ func (w *Worker) Run(ctx context.Context) {
 				continue
 			}
 			for _, o := range orders {
-				w.dispatch(ctx, &wg, o)
+				w.enqueue(o)
 			}
 		}
 	}
 }
 
-func (w *Worker) dispatch(ctx context.Context, wg *sync.WaitGroup, order ordermodel.Order) {
-	// Acquire - блокирует горутину в случае, если в semaphore закончился ресурс
-	// В качестве задающего ресурса выступает maxConcurrent поле в Worker struct
-	if err := w.sem.Acquire(ctx, 1); err != nil {
-		return
-	}
-
-	wg.Go(func() {
-		// Release - освобождает одну единицу ресурса в seamaphore после окончания работы processOrder
-		defer w.sem.Release(1)
-		if err := w.processOrder(ctx, order); err != nil {
-			w.logger.Error(
-				"process order failed",
-				"order_num", order.OrderNum,
-				"err", err,
-			)
+func (w *Worker) fetchAccrual(ctx context.Context, orderNum string) (*accrualclient.ResultResponse, error) {
+	for {
+		// Если словили 429, то остальные воркеры застынут в ожидание на этой строчке
+		if err := w.gate.Wait(ctx); err != nil {
+			return nil, err
 		}
-	})
 
+		// даже если в это горлышко протиснутся другие воркеры, мы не сделаем x2 x3 к паузе
+		// так как в PauseFor мы отталкиваемся от текущего времени и прибавим максимум копеечные
+		// миллисекунды
+
+		res, err := w.accrual.GetOrder(ctx, orderNum)
+
+		var rl *accrualclient.RateLimitError
+		if errors.As(err, &rl) {
+			w.gate.PauseFor(rl.RetryAfter)
+			w.logger.Warn(
+				"accrual rate limited, pausing requests",
+				"retry_after", rl.RetryAfter,
+			)
+			continue // после паузы отправляем воркера обратно к точке Wait
+		}
+		return res, err
+	}
 }
 
 // processOrder — единственная точка входа для всех заказов, из Notifier и из Polling в том числе
@@ -142,7 +203,7 @@ func (w *Worker) processOrder(ctx context.Context, order ordermodel.Order) error
 		return nil
 	}
 
-	result, err := w.accrual.GetOrder(ctx, order.OrderNum)
+	result, err := w.fetchAccrual(ctx, order.OrderNum)
 	if err != nil {
 		return fmt.Errorf("get order from accrual: %w", err)
 	}
