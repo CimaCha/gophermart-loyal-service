@@ -67,9 +67,13 @@ func TestClient_GetOrder_RateLimited(t *testing.T) {
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 
+	var rateLimErr *RateLimitError
+
 	require.Nil(t, resp)
 	require.Error(t, err)
-	require.ErrorIs(t, err, ErrRateLimited)
+
+	require.ErrorAs(t, err, &rateLimErr)
+	require.Equal(t, time.Second*60, rateLimErr.RetryAfter)
 }
 
 func TestClient_GetOrder_UnexpectedStatus(t *testing.T) {
@@ -91,7 +95,9 @@ func TestClient_GetOrder_RequestError(t *testing.T) {
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 
+	var rateLimErr *RateLimitError
+
 	require.Nil(t, resp)
 	require.Error(t, err)
-	require.False(t, errors.Is(err, ErrRateLimited))
+	require.False(t, errors.As(err, &rateLimErr))
 }
