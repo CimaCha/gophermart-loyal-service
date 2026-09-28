@@ -1,11 +1,10 @@
 package middleware
 
 import (
+	"github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/request"
+	"github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/response"
 	"net/http"
 	"strings"
-
-	httprequest "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/request"
-	httpresponse "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/response"
 )
 
 func GzipCompress() Middleware {
