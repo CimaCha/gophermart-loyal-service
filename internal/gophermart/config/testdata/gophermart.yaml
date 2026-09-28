@@ -16,3 +16,8 @@ rate_limit:
   login:
     requests: 10
     period: 1m
+
+polling_interval: 15s
+worker_count: 16
+jobs_queue_size: 1024
+target_rps: 256
