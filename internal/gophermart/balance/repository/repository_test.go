@@ -187,3 +187,49 @@ func TestBalanceRepository_Withdraw(t *testing.T) {
 		assert.True(t, mustDecimal("400").Equal(current))
 	})
 }
+
+func TestBalanceRepository_GetWithdrawals(t *testing.T) {
+	ctx := context.Background()
+	repo := New(testPool)
+
+	t.Run("empty returns nil", func(t *testing.T) {
+		cleanDB(t)
+
+		userID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO users (id, login, password_hash) VALUES ($1, $2, $3)`,
+			userID, "u_"+userID.String()[:8], "hash",
+		)
+		require.NoError(t, err)
+
+		got, err := repo.GetWithdrawals(ctx, userID)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns sorted by processed_at ascending", func(t *testing.T) {
+		cleanDB(t)
+
+		userID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO users (id, login, password_hash) VALUES ($1, $2, $3)`,
+			userID, "u_"+userID.String()[:8], "hash",
+		)
+		require.NoError(t, err)
+
+		// вставляем в обратном порядке — проверяем, что ORDER BY работает
+		_, err = testPool.Exec(ctx,
+			`INSERT INTO transactions (user_uuid, order_num, sum, processed_at) VALUES
+			 ($1, '79927398713', 50, NOW() - INTERVAL '1 hour'),
+			 ($1, '12345678903', 100, NOW())`,
+			userID,
+		)
+		require.NoError(t, err)
+
+		got, err := repo.GetWithdrawals(ctx, userID)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, "79927398713", got[0].Order) // старая — первая
+		assert.Equal(t, "12345678903", got[1].Order) // новая — вторая
+	})
+}

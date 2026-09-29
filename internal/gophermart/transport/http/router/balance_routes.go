@@ -8,4 +8,5 @@ import (
 func registerBalanceRoutes(r chi.Router, deps *deps.Dependencies) {
 	r.Get("/balance", deps.BalanceHandler.GetBalance)
 	r.Post("/balance/withdraw", deps.BalanceHandler.Withdraw)
+	r.Get("/withdrawals", deps.BalanceHandler.Withdraws)
 }

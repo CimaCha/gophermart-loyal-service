@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -236,6 +237,80 @@ func TestHandler_Withdraw_InternalError(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	h.Withdraw(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+func TestHandler_GetWithdrawals_Success(t *testing.T) {
+	userID := uuid.New()
+	expected := []model.Withdrawal{
+		{Order: "12345678903", Sum: mustDecimal("100"), ProcessedAt: time.Now()},
+		{Order: "79927398713", Sum: mustDecimal("50"), ProcessedAt: time.Now()},
+	}
+
+	svc := NewMockBalanceService(t)
+	svc.On("GetWithdrawals", mock.Anything, userID).Return(expected, nil)
+
+	h := New(newTestLogger(), svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/user/withdrawals", nil)
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraws(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+	var got []model.Withdrawal
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Len(t, got, 2)
+	assert.Equal(t, "12345678903", got[0].Order)
+	svc.AssertExpectations(t)
+}
+
+func TestHandler_GetWithdrawals_Empty(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("GetWithdrawals", mock.Anything, userID).Return(nil, nil)
+
+	h := New(newTestLogger(), svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/user/withdrawals", nil)
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraws(rec, req)
+
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	svc.AssertExpectations(t)
+}
+
+func TestHandler_GetWithdrawals_NoUserID(t *testing.T) {
+	svc := NewMockBalanceService(t)
+	h := New(newTestLogger(), svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/user/withdrawals", nil)
+	rec := httptest.NewRecorder()
+
+	h.Withdraws(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestHandler_GetWithdrawals_ServiceError(t *testing.T) {
+	userID := uuid.New()
+	svc := NewMockBalanceService(t)
+	svc.On("GetWithdrawals", mock.Anything, userID).Return(nil, errors.New("boom"))
+
+	h := New(newTestLogger(), svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/user/withdrawals", nil)
+	req = req.WithContext(ctxkeys.WithUserID(req.Context(), userID))
+	rec := httptest.NewRecorder()
+
+	h.Withdraws(rec, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	svc.AssertExpectations(t)
