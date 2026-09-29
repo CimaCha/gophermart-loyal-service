@@ -36,6 +36,11 @@ func LoadFromYAML(path string) (*Config, error) {
 }
 
 func (c *Config) Validate() error {
+
+	if c == nil {
+		return errors.New("worker config: section is required")
+	}
+
 	if c.PollingInterval <= 0 {
 		return errors.New("polling interval must be greater than zero")
 	}
@@ -45,7 +50,7 @@ func (c *Config) Validate() error {
 	if c.JobsQueueSize < 1 {
 		return errors.New("jobs queue size must be at least 1")
 	}
-	if c.TargetRPS < 1 {
+	if c.TargetRPS <= 0 {
 		return errors.New("target RPS must be at least 1")
 	}
 	return nil

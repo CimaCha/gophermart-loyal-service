@@ -1,34 +1,37 @@
 ## LOGGER CONFIG ##
-directory: logs/gophermart
+logger:
+  directory: logs/gophermart
 
-stdout:
-  enabled: true
-  format: text
-  level: info
-
-files:
-  - name: app
+  stdout:
     enabled: true
-    format: json
-    level: debug
+    format: text
+    level: info
+
+  files:
+    - name: app
+      enabled: true
+      format: json
+      level: debug
 
 ## RATE LIMIT ROUTES CONFIG ##
-cleanup_interval: 5m
+rate_limits:
+  cleanup_interval: 5m
 
-register:
-  key_prefix: register
-  window: 1m
-  max_requests: 5
-login:
-  key_prefix: login
-  window: 3m
-  max_requests: 10
+  register:
+    key_prefix: register
+    window: 1m
+    max_requests: 5
+  login:
+    key_prefix: login
+    window: 3m
+    max_requests: 10
   # withdraw:
   #   window: 5m
   #   max_requests: 20
 
 ## BACKGROUND BOUNDED WORKER POOL CONFIG ##
-polling_interval: 15s
-worker_count: 16
-jobs_queue_size: 1024
-target_rps: 256
+worker:
+  polling_interval: 15s
+  worker_count: 16
+  jobs_queue_size: 1024
+  target_rps: 256

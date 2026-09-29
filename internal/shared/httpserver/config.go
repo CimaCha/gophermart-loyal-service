@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 
@@ -29,6 +30,13 @@ func RegisterFlags(fs *flag.FlagSet) *Config {
 func (c *Config) ParseEnv() error {
 	if err := env.Parse(c); err != nil {
 		return fmt.Errorf("failed to parse env: %w", err)
+	}
+	return nil
+}
+
+func (c Config) Validate() error {
+	if c.Addr == "" {
+		return errors.New("the run address can't be empty")
 	}
 	return nil
 }
