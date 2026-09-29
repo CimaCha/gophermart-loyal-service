@@ -1,0 +1,31 @@
+package config
+
+import (
+	"fmt"
+	"os"
+
+	"go.yaml.in/yaml/v3"
+
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
+	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
+	"github.com/CimaCha/gophermart-loyal-service/internal/shared/slogger"
+)
+
+type yamlConfig struct {
+	Logger *slogger.Config   `yaml:"logger"`
+	RLS    *ratelimit.Config `yaml:"rate_limits"`
+	Worker *worker.Config    `yaml:"worker"`
+}
+
+func loadYAML(path string) (*yamlConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read config file: %w", err)
+	}
+
+	var cfg yamlConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("unmarshal config file: %w", err)
+	}
+	return &cfg, nil
+}

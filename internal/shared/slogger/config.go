@@ -1,6 +1,7 @@
 package slogger
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -52,6 +53,99 @@ type FileConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	Format  Format `yaml:"format"`
 	Level   Level  `yaml:"level"`
+}
+
+func (c *Config) Validate() error {
+
+	if c == nil {
+		return errors.New("slogger config: section is required")
+	}
+
+	if c.Stdout.Enabled {
+		if err := c.Stdout.Validate(); err != nil {
+			return fmt.Errorf("stdout: %w", err)
+		}
+	}
+
+	names := make(map[string]struct{})
+
+	for i, file := range c.Files {
+		if err := file.Validate(); err != nil {
+			return fmt.Errorf("files[%d]: %w", i, err)
+		}
+
+		if _, ok := names[file.Name]; ok {
+			return fmt.Errorf("duplicate file logger name %q", file.Name)
+		}
+
+		names[file.Name] = struct{}{}
+	}
+
+	return nil
+}
+
+func (c *StdoutConfig) Validate() error {
+
+	if c == nil {
+		return errors.New("slogger config: stdout config is required")
+	}
+
+	if !c.Enabled {
+		return nil
+	}
+
+	if !c.Format.Valid() {
+		return fmt.Errorf("invalid format %q", c.Format)
+	}
+
+	if !c.Level.Valid() {
+		return fmt.Errorf("invalid level %q", c.Level)
+	}
+
+	return nil
+}
+
+func (c *FileConfig) Validate() error {
+
+	if c == nil {
+		return errors.New("slogger config: file config is required")
+	}
+
+	if !c.Enabled {
+		return nil
+	}
+
+	if c.Name == "" {
+		return errors.New("name is required")
+	}
+
+	if !c.Format.Valid() {
+		return fmt.Errorf("invalid format %q", c.Format)
+	}
+
+	if !c.Level.Valid() {
+		return fmt.Errorf("invalid level %q", c.Level)
+	}
+
+	return nil
+}
+
+func (f Format) Valid() bool {
+	switch f {
+	case FormatText, FormatJSON:
+		return true
+	default:
+		return false
+	}
+}
+
+func (l Level) Valid() bool {
+	switch l {
+	case LevelDebug, LevelInfo, LevelWarn, LevelError:
+		return true
+	default:
+		return false
+	}
 }
 
 func LoadFromYAML(path string) (*Config, error) {

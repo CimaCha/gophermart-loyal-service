@@ -1,1 +1,21 @@
-##
+## LOGGER CONFIG ##
+logger:
+  directory: logs/accrual
+
+  stdout:
+    enabled: true
+    format: text
+    level: info
+
+  files:
+    - name: app
+      enabled: true
+      format: json
+      level: debug
+
+## RATE LIMIT ROUTES CONFIG ##
+rate_limits:
+
+
+## SOME WORKER HERE ##
+worker:

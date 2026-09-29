@@ -24,20 +24,22 @@ type envParser interface {
 	ParseEnv() error
 }
 
+type validator interface {
+	Validate() error
+}
+
 const (
 	defaultConfigPath = "config/gophermart.yaml"
 	configPathEnvVar  = "GOPHERMART_CONFIG_PATH"
 )
 
 func Load(args []string) (*Config, error) {
-
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 
 	configPathFlag := fs.String("config", defaultConfigPath, "path to config file")
 	serverConfig := httpserver.RegisterFlags(fs)
 	dbConfig := postgres.RegisterFlags(fs)
 
-	// Парсим флаги
 	if err := fs.Parse(args); err != nil {
 		return nil, fmt.Errorf("parse flags: %w", err)
 	}
@@ -47,38 +49,29 @@ func Load(args []string) (*Config, error) {
 		configPath = v
 	}
 
-	// Парсим env если есть, то они приоритет
 	for _, p := range []envParser{serverConfig, dbConfig} {
 		if err := p.ParseEnv(); err != nil {
 			return nil, fmt.Errorf("parse env: %w", err)
 		}
 	}
 
-	logConfig, err := slogger.LoadFromYAML(configPath)
+	yc, err := loadYAML(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("slogger config: %w", err)
+		return nil, fmt.Errorf("load yaml config: %w", err)
 	}
 
-	rateLimitStorage, err := ratelimit.LoadFromYAML(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("rate limit config: %w", err)
-	}
-
-	workerConfig, err := worker.LoadFromYAML(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("backgorund worker config: %w", err)
-	}
-
-	if err := workerConfig.Validate(); err != nil {
-		return nil, fmt.Errorf("worker config validate: %w", err)
+	for _, v := range []validator{yc.Logger, yc.RLS, yc.Worker, dbConfig, serverConfig} {
+		if err := v.Validate(); err != nil {
+			return nil, fmt.Errorf("validate: %w", err)
+		}
 	}
 
 	return &Config{
 		Server: serverConfig,
 		DB:     dbConfig,
-		Logger: logConfig,
-		RLS:    rateLimitStorage,
-		W:      workerConfig,
+		Logger: yc.Logger,
+		RLS:    yc.RLS,
+		W:      yc.Worker,
 	}, nil
 
 }

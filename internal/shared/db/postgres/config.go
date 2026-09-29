@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 
@@ -29,6 +30,18 @@ func RegisterFlags(fs *flag.FlagSet) *Config {
 func (c *Config) ParseEnv() error {
 	if err := env.Parse(c); err != nil {
 		return fmt.Errorf("parse env: %w", err)
+	}
+	return nil
+}
+
+func (c *Config) Validate() error {
+
+	if c == nil {
+		return errors.New("postgres config: section is required")
+	}
+
+	if c.URI == "" {
+		return errors.New("the database URI can't be empty")
 	}
 	return nil
 }
