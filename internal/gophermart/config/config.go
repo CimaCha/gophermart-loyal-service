@@ -44,10 +44,18 @@ func Load(args []string) (*Config, error) {
 		return nil, fmt.Errorf("parse flags: %w", err)
 	}
 
+	fmt.Println("ARGS:", args)
+	fmt.Println("CONFIG FLAG:", *configPathFlag)
+
 	configPath := *configPathFlag
+
+	fmt.Println("BEFORE ENV:", configPath)
+
 	if v := os.Getenv(configPathEnvVar); v != "" {
 		configPath = v
 	}
+
+	fmt.Println("AFTER ENV:", configPath)
 
 	for _, p := range []envParser{serverConfig, dbConfig} {
 		if err := p.ParseEnv(); err != nil {
