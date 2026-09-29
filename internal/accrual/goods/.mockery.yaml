@@ -26,7 +26,7 @@ template: testify
 template-schema: '{{.Template}}.schema.json'
 
 packages:
-  github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler/:
+  github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler:
     config:
       all: true
 
