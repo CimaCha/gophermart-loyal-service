@@ -21,6 +21,7 @@ type Handler struct {
 type BalanceService interface {
 	GetBalance(ctx context.Context, userID uuid.UUID) (model.Balance, error)
 	Withdraw(ctx context.Context, userID uuid.UUID, orderNum string, sum decimal.Decimal) error
+	GetWithdrawals(ctx context.Context, userID uuid.UUID) ([]model.Withdrawal, error)
 }
 
 func New(logger *slog.Logger, balanceService BalanceService) *Handler {
@@ -78,5 +79,30 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.logger.Error("withdraw failed", "err", err, "user_id", userID)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
+}
+
+func (h *Handler) Withdraws(w http.ResponseWriter, r *http.Request) {
+	userID, err := ctxkeys.GetUserID(r.Context())
+	if err != nil {
+		h.logger.Error("get user id from context failed", "err", err)
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+	withdrawals, err := h.service.GetWithdrawals(r.Context(), userID)
+	if err != nil {
+		h.logger.Error("get withdrawals failed", "err", err, "user_id", userID)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	if len(withdrawals) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(withdrawals); err != nil {
+		h.logger.Error("encode withdrawals failed", "err", err)
 	}
 }

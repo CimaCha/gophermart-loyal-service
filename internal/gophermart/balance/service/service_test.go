@@ -112,3 +112,32 @@ func TestService_Withdraw_InsufficientFunds(t *testing.T) {
 	require.ErrorIs(t, err, model.ErrInsufficientFunds)
 	repo.AssertExpectations(t)
 }
+
+func TestService_GetWithdrawals_Success(t *testing.T) {
+	userID := uuid.New()
+	expected := []model.Withdrawal{{Order: "12345678903", Sum: mustDecimal("100")}}
+
+	repo := NewMockBalanceRepository(t)
+	repo.On("GetWithdrawals", context.Background(), userID).Return(expected, nil)
+
+	svc := New(repo)
+	got, err := svc.GetWithdrawals(context.Background(), userID)
+
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+	repo.AssertExpectations(t)
+}
+
+func TestService_GetWithdrawals_RepoError(t *testing.T) {
+	userID := uuid.New()
+	repoErr := errors.New("db is down")
+
+	repo := NewMockBalanceRepository(t)
+	repo.On("GetWithdrawals", context.Background(), userID).Return(nil, repoErr)
+
+	svc := New(repo)
+	_, err := svc.GetWithdrawals(context.Background(), userID)
+
+	require.ErrorIs(t, err, repoErr)
+	repo.AssertExpectations(t)
+}

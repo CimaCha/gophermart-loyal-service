@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/CimaCha/gophermart-loyal-service/pkg/luhn"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -26,4 +28,10 @@ func (r WithdrawRequest) Validate() error {
 		return ErrInvalidOrderNumber
 	}
 	return nil
+}
+
+type Withdrawal struct {
+	Order       string          `json:"order"`
+	Sum         decimal.Decimal `json:"sum"`
+	ProcessedAt time.Time       `json:"processed_at"`
 }

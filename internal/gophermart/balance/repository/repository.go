@@ -43,6 +43,7 @@ func (r *BalanceRepository) GetBalance(ctx context.Context, userID uuid.UUID) (m
 	return b, nil
 }
 
+// Withdraw выполняет списание средствт.
 func (r *BalanceRepository) Withdraw(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -97,4 +98,33 @@ func (r *BalanceRepository) Withdraw(
 
 	return tx.Commit(ctx)
 
+}
+
+// GetWithdrawals возвращает всю информацию о выводе средств.
+// Если записи о балансе нет, возвращает 204 (no content).
+func (r *BalanceRepository) GetWithdrawals(ctx context.Context, userID uuid.UUID) ([]model.Withdrawal, error) {
+	const query = `
+    SELECT order_num, sum, processed_at
+    FROM transactions
+	WHERE user_uuid = $1
+    ORDER BY processed_at ASC
+`
+	rows, err := r.pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query withdrawals: %w", err)
+
+	}
+	defer rows.Close()
+	var result []model.Withdrawal
+	for rows.Next() {
+		var w model.Withdrawal
+		if err := rows.Scan(&w.Order, &w.Sum, &w.ProcessedAt); err != nil {
+			return nil, fmt.Errorf("scan withdrawal: %w", err)
+		}
+		result = append(result, w)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate withdrawals: %w", err)
+	}
+	return result, nil
 }
