@@ -2,7 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
+
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -17,6 +20,15 @@ func New(pool *pgxpool.Pool) *GoodsRepository {
 }
 
 func (r *GoodsRepository) RegisterGoods(ctx context.Context, goods model.GoodsInfo) error {
-	// TODO
-	return nil
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO rewards (match, reward_value, reward_type) VALUES ($1, $2, $3)`,
+		goods.Match, goods.Reward, goods.RewardType,
+	)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return model.ErrMatchAlreadyExists
+		}
+	}
+	return err
 }
