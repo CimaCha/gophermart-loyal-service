@@ -11,6 +11,7 @@ import (
 	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +40,197 @@ func newRepo(t *testing.T) *OrderRepository {
 	t.Helper()
 
 	return New(testPool)
+}
+
+func TestOrderRepository_UpdateStatus_OrderNotFound(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	err := repo.UpdateStatus(
+		ctx,
+		"does-not-exist",
+		model.OrderStatusProcessing,
+	)
+
+	require.Error(t, err)
+	assert.EqualError(t, err, "there is no order with that num")
+}
+
+func TestOrderRepository_UpdateStatus(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	userID := uuid.New()
+
+	queryUser := `
+		INSERT INTO users 
+		(id, login, password_hash) 
+		VALUES ($1, $2, $3)
+	`
+	_, err := testPool.Exec(ctx, queryUser, userID, "test_login", "test_password_hash")
+	require.NoError(t, err)
+
+	_, err = testPool.Exec(ctx, `
+		INSERT INTO orders(order_num, user_id, order_status)
+		VALUES ($1,$2,$3)
+	`, "12345678903", userID, model.OrderStatusNew.String())
+
+	require.NoError(t, err)
+
+	err = repo.UpdateStatus(
+		ctx,
+		"12345678903",
+		model.OrderStatusProcessing,
+	)
+
+	require.NoError(t, err)
+
+	var status string
+
+	err = testPool.QueryRow(
+		ctx,
+		`SELECT order_status FROM orders WHERE order_num=$1`,
+		"12345678903",
+	).Scan(&status)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.OrderStatusProcessing.String(), status)
+}
+
+func TestOrderRepository_GetPendingOrders(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	userID := uuid.New()
+
+	queryUser := `
+		INSERT INTO users 
+		(id, login, password_hash) 
+		VALUES ($1, $2, $3)
+	`
+	_, err := testPool.Exec(ctx, queryUser, userID, "test_login", "test_password_hash")
+	require.NoError(t, err)
+
+	_, err = testPool.Exec(ctx, `
+		INSERT INTO orders(order_num, user_id, order_status)
+		VALUES
+		('1',$1,'NEW'),
+		('2',$1,'PROCESSING'),
+		('3',$1,'PROCESSED'),
+		('4',$1,'INVALID')
+	`, userID)
+
+	require.NoError(t, err)
+
+	orders, err := repo.GetPendingOrders(ctx)
+
+	require.NoError(t, err)
+	require.Len(t, orders, 2)
+
+	statuses := map[string]model.OrderStatus{}
+
+	for _, order := range orders {
+		statuses[order.OrderNum] = order.Status
+	}
+
+	assert.Equal(t, model.OrderStatusNew, statuses["1"])
+	assert.Equal(t, model.OrderStatusProcessing, statuses["2"])
+}
+
+func TestOrderRepository_UpdateOrderResultTx_AlreadyProcessed(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	userID := uuid.New()
+
+	queryUser := `
+		INSERT INTO users 
+		(id, login, password_hash) 
+		VALUES ($1, $2, $3)
+	`
+	_, err := testPool.Exec(ctx, queryUser, userID, "test_login", "test_password_hash")
+	require.NoError(t, err)
+
+	queryOrder := `
+		INSERT INTO orders
+		(order_num, user_id, order_status)
+		VALUES ($1, $2, $3)
+	`
+	_, err = testPool.Exec(ctx, queryOrder, "12345678903", userID, model.OrderStatusProcessed.String())
+	require.NoError(t, err)
+
+	tx, err := testPool.Begin(ctx)
+	require.NoError(t, err)
+
+	accrual := decimal.NewFromInt(100)
+
+	updated, err := repo.UpdateOrderResultTx(
+		ctx,
+		tx,
+		"12345678903",
+		model.OrderStatusProcessed,
+		&accrual,
+	)
+
+	require.NoError(t, err)
+	assert.False(t, updated)
+
+	require.NoError(t, tx.Commit(ctx))
+}
+
+func TestOrderRepository_UpdateOrderResultTx(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	userID := uuid.New()
+
+	queryUser := `
+		INSERT INTO users 
+		(id, login, password_hash) 
+		VALUES ($1, $2, $3)
+	`
+	_, err := testPool.Exec(ctx, queryUser, userID, "test_login", "test_password_hash")
+	require.NoError(t, err)
+
+	queryOrder := `
+		INSERT INTO orders
+		(order_num, user_id, order_status)
+		VALUES ($1, $2, $3)
+	`
+	_, err = testPool.Exec(ctx, queryOrder, "12345678903", userID, model.OrderStatusNew.String())
+	require.NoError(t, err)
+
+	accrual := decimal.NewFromFloat(500.25)
+
+	tx, err := testPool.Begin(ctx)
+	require.NoError(t, err)
+
+	updated, err := repo.UpdateOrderResultTx(
+		ctx, tx, "12345678903", model.OrderStatusProcessed, &accrual,
+	)
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	require.NoError(t, tx.Commit(ctx))
+
+	var (
+		status string
+		value  decimal.Decimal
+	)
+	err = testPool.QueryRow(
+		ctx,
+		`SELECT order_status, accrual FROM orders WHERE order_num=$1`,
+		"12345678903",
+	).Scan(&status, &value)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.OrderStatusProcessed.String(), status)
+	assert.True(t, value.Equal(accrual))
 }
 
 // CreateOrder
