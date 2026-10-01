@@ -14,6 +14,22 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// TxBeginner это обёртка над pgxpool.Pool, которая предоставляет метод BeginFunc для начала транзакций.
+type TxBeginner struct {
+	pool *pgxpool.Pool
+}
+
+// NewTxBeginner создает новый экземпляр TxBeginner с указанным пулом соединений.
+func NewTxBeginner(pool *pgxpool.Pool) *TxBeginner {
+	return &TxBeginner{pool: pool}
+}
+
+// BeginFunc выполняет функцию fn в контексте транзакции. Если fn возвращает ошибку, транзакция откатывается, иначе коммитится.
+func (t *TxBeginner) BeginFunc(ctx context.Context, fn func(pgx.Tx) error) error {
+	return pgx.BeginFunc(ctx, t.pool, fn)
+}
+
+// New создает новый пул соединений с базой данных PostgreSQL и выполняет миграции.
 func New(cfg Config, log *slog.Logger, migrationsFS embed.FS) (*pgxpool.Pool, error) {
 
 	log.Info(
