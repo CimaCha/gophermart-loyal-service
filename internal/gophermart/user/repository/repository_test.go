@@ -11,6 +11,7 @@ import (
 	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,88 +43,108 @@ func newRepo(t *testing.T) *UserRepository {
 }
 
 // CreateUser
-func TestCreateUser_Success(t *testing.T) {
-	cleanDB(t)
-	ctx := context.Background()
+func TestUserRepository_SaveUserInfo(t *testing.T) {
+	t.Cleanup(func() {
+		cleanDB(t)
+	})
+
 	repo := newRepo(t)
 
-	var (
-		expectedUUID         = uuid.New()
-		expectedLogin        = "test-login"
-		expectedPasswordHash = "test-password-hash"
-		expectedCreatedAt    = time.Now().UTC()
+	user := model.UserInfo{
+		UUID:         uuid.New(),
+		Login:        "test_login",
+		PasswordHash: "password_hash",
+		CreatedAt:    time.Now().UTC(),
+	}
+
+	err := repo.SaveUserInfo(context.Background(), user)
+	require.NoError(t, err)
+
+	var got model.UserInfo
+
+	err = testPool.QueryRow(
+		context.Background(),
+		`SELECT id, login, password_hash, created_at
+		 FROM users
+		 WHERE id = $1`,
+		user.UUID,
+	).Scan(
+		&got.UUID,
+		&got.Login,
+		&got.PasswordHash,
+		&got.CreatedAt,
 	)
 
+	require.NoError(t, err)
+
+	assert.Equal(t, user.UUID, got.UUID)
+	assert.Equal(t, user.Login, got.Login)
+	assert.Equal(t, user.PasswordHash, got.PasswordHash)
+	assert.WithinDuration(t, user.CreatedAt, got.CreatedAt, time.Second)
+
+	var (
+		balanceUser uuid.UUID
+		current     decimal.Decimal
+		withdrawn   decimal.Decimal
+	)
+
+	err = testPool.QueryRow(
+		context.Background(),
+		`SELECT user_uuid, current, withdrawn
+		 FROM balance
+		 WHERE user_uuid = $1`,
+		user.UUID,
+	).Scan(
+		&balanceUser,
+		&current,
+		&withdrawn,
+	)
+
+	require.NoError(t, err)
+
+	assert.Equal(t, user.UUID, balanceUser)
+	assert.True(t, current.Equal(decimal.Zero))
+	assert.True(t, withdrawn.Equal(decimal.Zero))
+}
+
+func TestUserRepository_SaveUserInfo_UserAlreadyExists_Rollback(t *testing.T) {
+	t.Cleanup(func() {
+		cleanDB(t)
+	})
+
+	repo := newRepo(t)
+	ctx := context.Background()
+
 	user := model.UserInfo{
-		UUID:         expectedUUID,
-		Login:        expectedLogin,
-		PasswordHash: expectedPasswordHash,
-		CreatedAt:    expectedCreatedAt,
+		UUID:         uuid.New(),
+		Login:        "duplicate_login",
+		PasswordHash: "hash",
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	err := repo.SaveUserInfo(ctx, user)
 	require.NoError(t, err)
 
-	queryCheck := `
-		SELECT id, login, password_hash, created_at
-		FROM users
-		WHERE id = $1
-	`
-
-	result := &model.UserInfo{}
-
-	err = testPool.QueryRow(ctx, queryCheck, expectedUUID).
-		Scan(
-			&result.UUID,
-			&result.Login,
-			&result.PasswordHash,
-			&result.CreatedAt,
-		)
-	require.NoError(t, err)
-
-	assert.Equal(t, user.UUID, result.UUID)
-	assert.Equal(t, user.Login, result.Login)
-	assert.Equal(t, user.PasswordHash, result.PasswordHash)
-
-	assert.WithinDuration(t, user.CreatedAt, result.CreatedAt, time.Second)
-}
-
-func TestCreateUser_Duplicate(t *testing.T) {
-	cleanDB(t)
-	ctx := context.Background()
-	repo := newRepo(t)
-
-	user1 := model.UserInfo{
+	anotherUser := model.UserInfo{
 		UUID:         uuid.New(),
-		Login:        "same-login",
-		PasswordHash: "test-password-hash",
+		Login:        user.Login,
+		PasswordHash: "another_hash",
 		CreatedAt:    time.Now().UTC(),
 	}
 
-	user2 := model.UserInfo{
-		UUID:         uuid.New(),
-		Login:        "same-login",
-		PasswordHash: "test-password-hash",
-		CreatedAt:    time.Now().UTC(),
-	}
-
-	err := repo.SaveUserInfo(ctx, user1)
-	require.NoError(t, err)
-
-	err = repo.SaveUserInfo(ctx, user2)
-	require.Error(t, err)
+	err = repo.SaveUserInfo(ctx, anotherUser)
 	require.ErrorIs(t, err, ErrUserAlreadyExists)
-
-	queryCheck := `
-		SELECT COUNT(*) AS users_count FROM users
-	`
 
 	var count int
 
-	err = testPool.QueryRow(ctx, queryCheck).Scan(&count)
-	require.NoError(t, err)
+	err = testPool.QueryRow(
+		ctx,
+		`SELECT COUNT(*) FROM balance WHERE user_uuid = $1`,
+		anotherUser.UUID,
+	).Scan(&count)
 
-	require.Equal(t, 1, count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
 }
 
 // FindUserInfo

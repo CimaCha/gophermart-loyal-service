@@ -43,6 +43,27 @@ func (r *BalanceRepository) GetBalance(ctx context.Context, userID uuid.UUID) (m
 	return b, nil
 }
 
+func (r *BalanceRepository) AccrueTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	userID uuid.UUID,
+	sum decimal.Decimal,
+) error {
+	tag, err := tx.Exec(ctx,
+		`UPDATE balance SET current = current + $1 WHERE user_uuid = $2`,
+		sum, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update balance: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("balance row not found for user %s", userID)
+	}
+
+	return nil
+}
+
 // Withdraw выполняет списание средствт.
 func (r *BalanceRepository) Withdraw(
 	ctx context.Context,

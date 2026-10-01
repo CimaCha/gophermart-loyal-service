@@ -26,7 +26,7 @@ func TestClient_GetOrder_OK(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := New(ts.URL, time.Second)
+	client := New(Config{Address: ts.URL, Timeout: time.Second})
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 
@@ -46,7 +46,7 @@ func TestClient_GetOrder_NoContent(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := New(ts.URL, time.Second)
+	client := New(Config{Address: ts.URL, Timeout: time.Second})
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 
@@ -63,7 +63,7 @@ func TestClient_GetOrder_RateLimited(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := New(ts.URL, time.Second)
+	client := New(Config{Address: ts.URL, Timeout: time.Second})
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 
@@ -82,7 +82,7 @@ func TestClient_GetOrder_UnexpectedStatus(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := New(ts.URL, time.Second)
+	client := New(Config{Address: ts.URL, Timeout: time.Second})
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 
@@ -91,7 +91,7 @@ func TestClient_GetOrder_UnexpectedStatus(t *testing.T) {
 }
 
 func TestClient_GetOrder_RequestError(t *testing.T) {
-	client := New("http://127.0.0.1:1", time.Millisecond)
+	client := New(Config{Address: "http://127.0.0.1:1", Timeout: time.Millisecond})
 
 	resp, err := client.GetOrder(context.Background(), "12345")
 

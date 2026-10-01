@@ -50,6 +50,7 @@ func (b TokenService) BuildJWTString(userID uuid.UUID) (string, error) {
 	return token.SignedString(b.secretKey)
 }
 
+// ValidateToken проверяет токен и возвращает идентификатор пользователя, если токен действителен.
 func (b TokenService) ValidateToken(tokenString string) (uuid.UUID, error) {
 	claims := &Claims{}
 

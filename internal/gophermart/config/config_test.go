@@ -14,6 +14,8 @@ func argsWithConfig(path string) []string {
 		"postgres://user:pass@localhost:5432/gophermart",
 		"-a",
 		":8080",
+		"-r",
+		"http://localhost:8081",
 		"-config",
 		path,
 	}
@@ -40,6 +42,8 @@ func TestLoad_Success(t *testing.T) {
 	require.NotNil(t, cfg.Logger)
 	require.NotNil(t, cfg.RLS)
 	require.NotNil(t, cfg.W)
+	require.NotNil(t, cfg.Accrual)
+	assert.Equal(t, "http://localhost:8081", cfg.Accrual.Address)
 
 	assert.Equal(t, 16, cfg.W.WorkerCount)
 }
@@ -54,12 +58,34 @@ func TestLoad_ConfigPathFromEnv(t *testing.T) {
 		"postgres://user:pass@localhost:5432/gophermart",
 		"-a",
 		":8080",
+		"-r",
+		"http://localhost:8081",
 	})
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
 	assert.Equal(t, 16, cfg.W.WorkerCount)
+	assert.Equal(t, "http://localhost:8081", cfg.Accrual.Address)
+}
+
+func TestLoad_AccrualEnvHasPriorityOverFlag(t *testing.T) {
+	t.Setenv(configPathEnvVar, "")
+
+	path := writeYAML(t, validYAML)
+
+	t.Setenv("ACCRUAL_SYSTEM_ADDRESS", "http://env:8081")
+
+	cfg, err := Load([]string{
+		"-d", "postgres://user:pass@localhost:5432/gophermart",
+		"-a", ":8080",
+		"-r", "http://flag:8081",
+		"-config", path,
+	})
+
+	require.NoError(t, err)
+
+	assert.Equal(t, "http://env:8081", cfg.Accrual.Address)
 }
 
 func TestLoad_EnvHasPriorityOverFlag(t *testing.T) {

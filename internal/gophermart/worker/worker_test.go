@@ -136,7 +136,7 @@ func TestWorker_ProcessOrder_Flows(t *testing.T) {
 					UpdateOrderResultTx(mock.Anything, mock.Anything, "123", ordermodel.OrderStatusProcessed, &sum).
 					Return(true, nil)
 				m.balances.EXPECT().
-					AccrueTx(mock.Anything, mock.Anything, uid, "123", sum).
+					AccrueTx(mock.Anything, mock.Anything, uid, sum).
 					Return(nil)
 			},
 		},
@@ -184,7 +184,7 @@ func TestWorker_ProcessOrder_Flows(t *testing.T) {
 					UpdateOrderResultTx(mock.Anything, mock.Anything, "123", ordermodel.OrderStatusProcessed, &sum).
 					Return(true, nil)
 				m.balances.EXPECT().
-					AccrueTx(mock.Anything, mock.Anything, uid, "123", sum).
+					AccrueTx(mock.Anything, mock.Anything, uid, sum).
 					Return(errBoom)
 			},
 		},

@@ -44,6 +44,66 @@ func cleanDB(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestBalanceRepository_AccrueTx_BalanceNotFound(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	tx, err := testPool.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	err = repo.AccrueTx(
+		ctx,
+		tx,
+		uuid.New(),
+		decimal.NewFromInt(100),
+	)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "balance row not found")
+}
+
+func TestBalanceRepository_AccrueTx(t *testing.T) {
+	cleanDB(t)
+	ctx := context.Background()
+	repo := New(testPool)
+
+	userID := uuid.New()
+
+	queryUser := `INSERT INTO users (id, login, password_hash) VALUES ($1, $2, $3)`
+	_, err := testPool.Exec(ctx, queryUser, userID, "test_user", "hash")
+	require.NoError(t, err)
+
+	_, err = testPool.Exec(ctx, `
+		INSERT INTO balance(user_uuid, current, withdrawn)
+		VALUES ($1, 100, 0)
+	`, userID)
+	require.NoError(t, err)
+
+	tx, err := testPool.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	sum := decimal.NewFromFloat(25.5)
+
+	err = repo.AccrueTx(ctx, tx, userID, sum)
+	require.NoError(t, err)
+
+	require.NoError(t, tx.Commit(ctx))
+
+	var current decimal.Decimal
+
+	err = testPool.QueryRow(
+		ctx,
+		`SELECT current FROM balance WHERE user_uuid = $1`,
+		userID,
+	).Scan(&current)
+
+	require.NoError(t, err)
+	assert.True(t, current.Equal(decimal.NewFromFloat(125.5)))
+}
+
 func TestBalanceRepository_GetBalance(t *testing.T) {
 	cleanDB(t)
 	repo := New(testPool)

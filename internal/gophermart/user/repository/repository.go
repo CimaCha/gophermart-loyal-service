@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -42,17 +44,40 @@ func (r *UserRepository) FindUserInfo(ctx context.Context, userLogin string) (*m
 }
 
 func (r *UserRepository) SaveUserInfo(ctx context.Context, userInfo model.UserInfo) error {
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
 	query := `
 		INSERT INTO users(id, login, password_hash, created_at)
 		VALUES ($1,$2, $3, $4)
 	`
-	_, err := r.pool.Exec(ctx, query, userInfo.UUID, userInfo.Login, userInfo.PasswordHash, userInfo.CreatedAt)
+	_, err = tx.Exec(
+		ctx,
+		query,
+		userInfo.UUID,
+		userInfo.Login,
+		userInfo.PasswordHash,
+		userInfo.CreatedAt,
+	)
+
 	var pgErr *pgconn.PgError
 	if err != nil {
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return ErrUserAlreadyExists
 		}
-		return err
+		return fmt.Errorf("insert user: %w", err)
 	}
-	return nil
+
+	queryBalance := `INSERT INTO balance (user_uuid, current, withdrawn) VALUES ($1, 0, 0)`
+
+	_, err = tx.Exec(ctx, queryBalance, userInfo.UUID)
+	if err != nil {
+		return fmt.Errorf("insert balance: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
