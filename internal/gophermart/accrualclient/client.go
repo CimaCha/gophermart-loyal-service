@@ -80,10 +80,10 @@ func (e *RateLimitError) Error() string {
 // New создаёт экземпляр HTTP-клиента
 // baseURL - необходим для того, чтобы клиент знал по какому адресу находится accrual
 // timeout - необходим для возможности прервать запрос, если сервер долго не отвечает клиенту
-func New(baseURL string, timeout time.Duration) *Client {
+func New(cfg Config) *Client {
 	client := resty.New().
-		SetBaseURL(baseURL).
-		SetTimeout(timeout).
+		SetBaseURL(cfg.Address).
+		SetTimeout(cfg.Timeout).
 		SetRetryCount(0)
 
 	return &Client{httpClient: client}
