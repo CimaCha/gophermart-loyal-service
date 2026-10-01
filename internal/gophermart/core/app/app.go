@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
-	middleware2 "github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/middleware"
 	"log/slog"
 	"os"
 
+	middleware2 "github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/middleware"
+
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/accrualclient"
 	authentication "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/auth"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/core/deps"
@@ -17,6 +19,7 @@ import (
 	userh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler"
 	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
 	usersvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
@@ -36,6 +39,8 @@ import (
 type App struct {
 	Server  *httpserver.HTTPServer
 	Pgxpool *pgxpool.Pool
+
+	Worker *worker.Worker
 }
 
 const (
@@ -56,39 +61,43 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		return nil, fmt.Errorf("database initialize: %w", err)
 	}
 
+	// Создаём HTTP-сервер и accrual client
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
+	accrualClient := accrualclient.New(*cfg.Accrual)
 
+	// Создаём rate limiter
 	limiter := ratelimit.NewRLS(ctx, cfg.RLS, log)
 
 	var (
 		jwtSecret string
 	)
-
+	// Получаем секретный ключ для JWT из переменной окружения S_JWT
 	jwtSecret = os.Getenv("S_JWT")
 
 	if jwtSecret == "" {
 		jwtSecret = defaultJWTKey
 	}
-
+	// Создаём сервис для работы с JWT
 	tokenSvc := authentication.New([]byte(jwtSecret))
 	passHasher := new(passhasher.Argon2Hasher)
 
-	// accrualClient
-
+	// repositories, services, handlers
 	userRepo := userrepo.New(pool)
 	orderRepo := orderrepo.New(pool)
 	balanceRepo := balancerepo.New(pool)
 
-	// backgroundWorker
+	txBeginner := postgres.NewTxBeginner(pool)
+	orderWorker := worker.New(orderRepo, balanceRepo, accrualClient, txBeginner, log, cfg.W)
 
 	userSvc := usersvc.New(userRepo, tokenSvc, passHasher)
-	orderSvc := ordersvc.New(orderRepo, log, nil) // Notifier TODO (worker)
+	orderSvc := ordersvc.New(orderRepo, log, orderWorker) // orderWorker реализует OrderNotifier.Notify
 	balanceSvc := balancesvc.New(balanceRepo)
 
 	userHandler := userh.New(log, userSvc)
 	orderHandler := orderh.New(log, orderSvc)
 	balanceHandler := balanceh.New(log, balanceSvc)
 
+	// Создаём зависимости для передачи в router.SetupRoutes
 	dependencies := deps.New(
 		userHandler,
 		orderHandler,
@@ -98,7 +107,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		cfg,
 		log,
 	)
-
+	// Регистрируем middleware для rootRouter
 	rootRouter.Use(
 		chimiddleware.Recoverer,
 		middleware2.RequestID(),
@@ -112,11 +121,14 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	return &App{
 		Server:  httpServer,
 		Pgxpool: pool,
+		Worker:  orderWorker,
 	}, nil
 
 }
 
 func (a *App) Run(ctx context.Context) error {
+
+	go a.Worker.Run(ctx)
 
 	if err := a.Server.Run(ctx); err != nil {
 		return fmt.Errorf("server run: %w", err)
