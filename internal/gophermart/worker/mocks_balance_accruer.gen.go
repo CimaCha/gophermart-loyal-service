@@ -41,16 +41,16 @@ func (_m *MockBalanceAccruer) EXPECT() *MockBalanceAccruer_Expecter {
 }
 
 // AccrueTx provides a mock function for the type MockBalanceAccruer
-func (_mock *MockBalanceAccruer) AccrueTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, orderNum string, sum decimal.Decimal) error {
-	ret := _mock.Called(ctx, tx, userID, orderNum, sum)
+func (_mock *MockBalanceAccruer) AccrueTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, sum decimal.Decimal) error {
+	ret := _mock.Called(ctx, tx, userID, sum)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AccrueTx")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, string, decimal.Decimal) error); ok {
-		r0 = returnFunc(ctx, tx, userID, orderNum, sum)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, decimal.Decimal) error); ok {
+		r0 = returnFunc(ctx, tx, userID, sum)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,13 +66,12 @@ type MockBalanceAccruer_AccrueTx_Call struct {
 //   - ctx context.Context
 //   - tx pgx.Tx
 //   - userID uuid.UUID
-//   - orderNum string
 //   - sum decimal.Decimal
-func (_e *MockBalanceAccruer_Expecter) AccrueTx(ctx any, tx any, userID any, orderNum any, sum any) *MockBalanceAccruer_AccrueTx_Call {
-	return &MockBalanceAccruer_AccrueTx_Call{Call: _e.mock.On("AccrueTx", ctx, tx, userID, orderNum, sum)}
+func (_e *MockBalanceAccruer_Expecter) AccrueTx(ctx any, tx any, userID any, sum any) *MockBalanceAccruer_AccrueTx_Call {
+	return &MockBalanceAccruer_AccrueTx_Call{Call: _e.mock.On("AccrueTx", ctx, tx, userID, sum)}
 }
 
-func (_c *MockBalanceAccruer_AccrueTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID, orderNum string, sum decimal.Decimal)) *MockBalanceAccruer_AccrueTx_Call {
+func (_c *MockBalanceAccruer_AccrueTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID, sum decimal.Decimal)) *MockBalanceAccruer_AccrueTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -86,20 +85,15 @@ func (_c *MockBalanceAccruer_AccrueTx_Call) Run(run func(ctx context.Context, tx
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 string
+		var arg3 decimal.Decimal
 		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 decimal.Decimal
-		if args[4] != nil {
-			arg4 = args[4].(decimal.Decimal)
+			arg3 = args[3].(decimal.Decimal)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -110,7 +104,7 @@ func (_c *MockBalanceAccruer_AccrueTx_Call) Return(err error) *MockBalanceAccrue
 	return _c
 }
 
-func (_c *MockBalanceAccruer_AccrueTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID, orderNum string, sum decimal.Decimal) error) *MockBalanceAccruer_AccrueTx_Call {
+func (_c *MockBalanceAccruer_AccrueTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID, sum decimal.Decimal) error) *MockBalanceAccruer_AccrueTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

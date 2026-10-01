@@ -26,7 +26,7 @@ type OrderStore interface {
 
 type BalanceAccruer interface {
 	// Accrue - обновляет баланс пользователя используяю транзакцию
-	AccrueTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, orderNum string, sum decimal.Decimal) error
+	AccrueTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, sum decimal.Decimal) error
 }
 
 type AccrualClient interface {
@@ -237,7 +237,7 @@ func (w *Worker) finalizeOrder(ctx context.Context, order ordermodel.Order, resu
 		}
 
 		if status == ordermodel.OrderStatusProcessed && result.Accrual != nil {
-			return w.balances.AccrueTx(ctx, tx, order.UserID, order.OrderNum, *result.Accrual)
+			return w.balances.AccrueTx(ctx, tx, order.UserID, *result.Accrual)
 		}
 		return nil
 	})
