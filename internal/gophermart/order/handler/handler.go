@@ -65,7 +65,7 @@ func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, context.Canceled):
-			h.l.Debug("create short url canceled by client")
+			h.l.Debug("create order canceled by client")
 			w.WriteHeader(499)
 			return
 		default:

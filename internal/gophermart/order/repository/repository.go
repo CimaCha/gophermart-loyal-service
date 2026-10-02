@@ -193,5 +193,4 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *model.Order) e
 	}
 
 	return nil
-
 }
