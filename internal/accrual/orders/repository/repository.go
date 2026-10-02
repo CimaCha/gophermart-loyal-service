@@ -23,7 +23,7 @@ func New(pool *pgxpool.Pool) *OrderRepository {
 	}
 }
 
-func (r *OrderRepository) GetOrder(ctx context.Context, orderId string) (model.Order, error) {
+func (r *OrderRepository) GetOrder(ctx context.Context, orderID string) (model.Order, error) {
 	//TODO
 	return model.Order{}, nil
 }
