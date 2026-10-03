@@ -10,13 +10,24 @@ import (
 // Метод для регистрации маршрутов сервиса user
 
 func registerUserRoutes(r chi.Router, deps *deps.Dependencies) {
+
+	regCfg, ok := deps.Cfg.RLS.Routes["register"]
+	if !ok {
+		panic("register rate limit config not found")
+	}
+
+	logCfg, ok := deps.Cfg.RLS.Routes["login"]
+	if !ok {
+		panic("login rate limit config not found")
+	}
+
 	r.With(
 		chimiddleware.AllowContentType("application/json"),
-		middleware.RateLimit(deps.RLS, deps.Cfg.RLS.Register),
+		middleware.RateLimit(deps.RLS, regCfg, "register"),
 	).Post("/register", deps.UserHandler.RegisterUser)
 
 	r.With(
 		chimiddleware.AllowContentType("application/json"),
-		middleware.RateLimit(deps.RLS, deps.Cfg.RLS.Login),
+		middleware.RateLimit(deps.RLS, logCfg, "login"),
 	).Post("/login", deps.UserHandler.LoginUser)
 }
