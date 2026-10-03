@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
-	app2 "github.com/CimaCha/gophermart-loyal-service/internal/accrual/core/app"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/slogger"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/core/app"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	}()
 
 	// initialize app
-	app, err := app2.New(sigCtx, cfg, slog)
+	app, err := app.New(sigCtx, cfg, slog)
 	if err != nil {
 		slog.Error(
 			"failed to initialize application",

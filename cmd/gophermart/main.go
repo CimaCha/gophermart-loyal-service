@@ -9,7 +9,7 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/core/app"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/slogger"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
 func main() {

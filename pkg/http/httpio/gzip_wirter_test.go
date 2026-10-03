@@ -1,4 +1,4 @@
-package httpresponse
+package httpio
 
 import (
 	"compress/gzip"

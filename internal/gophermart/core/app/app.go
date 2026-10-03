@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"os"
 
-	middleware2 "github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/middleware"
-
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/accrualclient"
 	authentication "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/auth"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/config"
@@ -15,16 +13,17 @@ import (
 	orderh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/handler"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/repository"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/router"
 	userh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler"
 	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
 	usersvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
 	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpmiddleware"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
 	"github.com/shopspring/decimal"
 
 	balanceh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/handler"
@@ -65,8 +64,8 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
 	accrualClient := accrualclient.New(*cfg.Accrual)
 
-	// Создаём rate limiter
-	limiter := ratelimit.NewRLS(ctx, cfg.RLS, log)
+	// Создаём rate limiter store
+	limiter := ratelimitstore.New(ctx, cfg.RLS, log)
 
 	var (
 		jwtSecret string
@@ -110,9 +109,9 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	// Регистрируем middleware для rootRouter
 	rootRouter.Use(
 		chimiddleware.Recoverer,
-		middleware2.RequestID(),
-		middleware2.Logging(log),
-		middleware2.GzipCompress(),
+		httpmiddleware.RequestID(),
+		httpmiddleware.Logging(log),
+		httpmiddleware.GzipCompress(),
 	)
 
 	// Регистрируем все маршруты здесь

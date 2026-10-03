@@ -1,17 +1,18 @@
-package middleware
+package httpmiddleware
 
 import (
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/response"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpio"
 )
 
 func Logging(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := r.Header.Get(requestHeader)
-			rw := httpresponse.New(w)
+			rw := httpio.NewLoggingResponseWriter(w)
 			start := time.Now()
 
 			l := log.With(

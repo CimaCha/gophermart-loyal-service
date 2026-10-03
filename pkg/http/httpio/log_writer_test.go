@@ -1,4 +1,4 @@
-package httpresponse
+package httpio
 
 import (
 	"net/http"
@@ -10,7 +10,7 @@ import (
 
 func TestLoggingResponseWriter_WriteAndHeader(t *testing.T) {
 	rec := httptest.NewRecorder()
-	lrw := New(rec)
+	lrw := NewLoggingResponseWriter(rec)
 
 	lrw.WriteHeader(http.StatusAccepted)
 
@@ -27,7 +27,7 @@ func TestLoggingResponseWriter_WriteAndHeader(t *testing.T) {
 
 func TestLoggingResponseWriter_GetStatusCode_Panic(t *testing.T) {
 	rec := httptest.NewRecorder()
-	lrw := New(rec)
+	lrw := NewLoggingResponseWriter(rec)
 
 	assert.PanicsWithValue(t, "no status code set", func() {
 		lrw.GetStatusCode()

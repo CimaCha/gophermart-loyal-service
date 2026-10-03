@@ -1,10 +1,10 @@
-package middleware
+package httpmiddleware
 
 import (
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/request"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/response"
 	"net/http"
 	"strings"
+
+	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpio"
 )
 
 func GzipCompress() Middleware {
@@ -16,7 +16,7 @@ func GzipCompress() Middleware {
 			acceptsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
 
 			if acceptsGzip {
-				gzipWriter := httpresponse.NewGzipWriter(w)
+				gzipWriter := httpio.NewGzipWriter(w)
 
 				originalWriter = gzipWriter
 
@@ -26,7 +26,7 @@ func GzipCompress() Middleware {
 			sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
 
 			if sendsGzip {
-				gzipReader, err := httprequest.NewGzipReader(r.Body)
+				gzipReader, err := httpio.NewGzipReader(r.Body)
 				if err != nil {
 					http.Error(
 						w,
