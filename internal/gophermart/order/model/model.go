@@ -38,7 +38,7 @@ func NewOrder(orderNum string, uid uuid.UUID) *Order {
 	return &Order{
 		OrderNum:   orderNum,
 		UserID:     uid,
-		Status:     "NEW",
+		Status:     OrderStatusNew,
 		Accrual:    nil,
 		UploadedAt: time.Now(),
 	}
