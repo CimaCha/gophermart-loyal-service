@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/model"
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/testenv"
+	"github.com/CimaCha/gophermart-loyal-service/internal/testenv"
 	gophermartMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/gophermart"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"

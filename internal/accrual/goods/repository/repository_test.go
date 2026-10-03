@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/testenv"
+	"github.com/CimaCha/gophermart-loyal-service/internal/testenv"
 	accrualMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/accrual"
 )
 
