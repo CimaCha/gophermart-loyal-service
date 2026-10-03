@@ -11,6 +11,7 @@ import (
 	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/handler"
 	ordersrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/repository"
 	orderssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpmiddleware"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
@@ -46,6 +47,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	}
 
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
+	rateLimitStore := ratelimitstore.New(ctx, cfg.RLS, log)
 
 	orderRepo := ordersrepo.New(pool)
 	goodsRepo := goodsrepo.New(pool)
@@ -61,6 +63,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		goodsHandler,
 		cfg,
 		log,
+		rateLimitStore,
 	)
 
 	rootRouter.Use(

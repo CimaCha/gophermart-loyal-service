@@ -12,7 +12,7 @@ import (
 
 const validYAML = `
 logger:
-  directory: logs/gophermart
+  directory: logs/accrual
   stdout:
     enabled: true
     format: text
@@ -24,20 +24,12 @@ logger:
       level: debug
 
 rate_limits:
-  cleanup_interval: 5m
-  routes:
-    register:
-      window: 1m
-      max_requests: 5
-    login:
-      window: 3m
-      max_requests: 10
+  cleanup_interval: 30m
 
-worker:
-  polling_interval: 15s
-  worker_count: 16
-  jobs_queue_size: 1024
-  target_rps: 256
+  routes:
+    getorders:
+      window: 1m
+      max_requests: 1024
 `
 
 // writeYAML создаёт временный файл с содержимым и возвращает путь к нему
@@ -64,31 +56,20 @@ func TestLoadYAML_Success(t *testing.T) {
 
 	// Logger
 	require.NotNil(t, cfg.Logger)
-	assert.Equal(t, "logs/gophermart", cfg.Logger.Directory)
+	assert.Equal(t, "logs/accrual", cfg.Logger.Directory)
 	assert.True(t, cfg.Logger.Stdout.Enabled)
 	require.Len(t, cfg.Logger.Files, 1)
 	assert.Equal(t, "app", cfg.Logger.Files[0].Name)
 
 	// RateLimits
 	require.NotNil(t, cfg.RLS)
-	assert.Equal(t, 5*time.Minute, cfg.RLS.CleanupInterval)
+	assert.Equal(t, 30*time.Minute, cfg.RLS.CleanupInterval)
 
-	_, ok := cfg.RLS.Routes["register"]
-	assert.True(t, ok)
-	_, ok = cfg.RLS.Routes["login"]
+	_, ok := cfg.RLS.Routes["getorders"]
 	assert.True(t, ok)
 
-	assert.Equal(t, time.Minute, cfg.RLS.Routes["register"].Window)
-	assert.Equal(t, 5, cfg.RLS.Routes["register"].MaxRequests)
-	assert.Equal(t, 3*time.Minute, cfg.RLS.Routes["login"].Window)
-	assert.Equal(t, 10, cfg.RLS.Routes["login"].MaxRequests)
-
-	// Worker
-	require.NotNil(t, cfg.Worker)
-	assert.Equal(t, 15*time.Second, cfg.Worker.PollingInterval)
-	assert.Equal(t, 16, cfg.Worker.WorkerCount)
-	assert.Equal(t, 1024, cfg.Worker.JobsQueueSize)
-	assert.InDelta(t, 256, cfg.Worker.TargetRPS, 0.0001)
+	assert.Equal(t, time.Minute, cfg.RLS.Routes["getorders"].Window)
+	assert.Equal(t, 1024, cfg.RLS.Routes["getorders"].MaxRequests)
 }
 
 func TestLoadYAML_FileNotFound(t *testing.T) {
@@ -124,17 +105,14 @@ logger:
   stdout:
     enabled: false
 rate_limits:
-  cleanup_interval: 5m
+  cleanup_interval: 30m
+
   routes:
-    register:
+    getorders:
       window: 1m
-      max_requests: 5
-    login:
-      window: 3m
-      max_requests: 10
+      max_requests: 1024
 `,
 			check: func(t *testing.T, cfg *yamlConfig) {
-				assert.Nil(t, cfg.Worker)
 				assert.NotNil(t, cfg.Logger)
 				assert.NotNil(t, cfg.RLS)
 			},
@@ -145,7 +123,6 @@ rate_limits:
 			check: func(t *testing.T, cfg *yamlConfig) {
 				assert.Nil(t, cfg.Logger)
 				assert.Nil(t, cfg.RLS)
-				assert.Nil(t, cfg.Worker)
 			},
 		},
 	}

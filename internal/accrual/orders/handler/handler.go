@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"net/http"
+
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
 	"github.com/google/uuid"
-	"log/slog"
-	"net/http"
 )
 
 type OrderService interface {

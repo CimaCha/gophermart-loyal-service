@@ -33,7 +33,6 @@ func TestRateLimit_CallsNextHandler(t *testing.T) {
 	}
 
 	cfg := ratelimitstore.RateLimitConfig{
-		KeyPrefix:   "login",
 		Window:      time.Minute,
 		MaxRequests: 5,
 	}
@@ -50,7 +49,7 @@ func TestRateLimit_CallsNextHandler(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 
-	RateLimit(mock, cfg)(handler).ServeHTTP(rec, req)
+	RateLimit(mock, cfg, "login")(handler).ServeHTTP(rec, req)
 
 	require.True(t, called)
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -68,7 +67,6 @@ func TestRateLimit_TooManyRequests(t *testing.T) {
 	}
 
 	cfg := ratelimitstore.RateLimitConfig{
-		KeyPrefix:   "login",
 		Window:      time.Minute,
 		MaxRequests: 5,
 	}
@@ -84,7 +82,7 @@ func TestRateLimit_TooManyRequests(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 
-	RateLimit(mock, cfg)(handler).ServeHTTP(rec, req)
+	RateLimit(mock, cfg, "login")(handler).ServeHTTP(rec, req)
 
 	require.False(t, called)
 	require.Equal(t, http.StatusTooManyRequests, rec.Code)
@@ -97,7 +95,6 @@ func TestRateLimit_InvalidRemoteAddr(t *testing.T) {
 	mock := &rateLimiterMock{}
 
 	cfg := ratelimitstore.RateLimitConfig{
-		KeyPrefix:   "login",
 		Window:      time.Minute,
 		MaxRequests: 5,
 	}
@@ -111,7 +108,7 @@ func TestRateLimit_InvalidRemoteAddr(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 
-	RateLimit(mock, cfg)(handler).ServeHTTP(rec, req)
+	RateLimit(mock, cfg, "login")(handler).ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 }
@@ -125,7 +122,6 @@ func TestRateLimit_UsesLimiterArguments(t *testing.T) {
 	}
 
 	cfg := ratelimitstore.RateLimitConfig{
-		KeyPrefix:   "register",
 		Window:      5 * time.Minute,
 		MaxRequests: 10,
 	}
@@ -139,7 +135,7 @@ func TestRateLimit_UsesLimiterArguments(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 
-	RateLimit(mock, cfg)(handler).ServeHTTP(rec, req)
+	RateLimit(mock, cfg, "register")(handler).ServeHTTP(rec, req)
 
 	require.Equal(t, "rate:register:192.168.1.15", mock.key)
 	require.Equal(t, 5*time.Minute, mock.window)

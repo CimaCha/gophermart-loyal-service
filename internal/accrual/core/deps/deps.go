@@ -6,6 +6,7 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
 	goodsh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler"
 	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/handler"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
 )
 
 type Dependencies struct {
@@ -13,6 +14,7 @@ type Dependencies struct {
 	GoodsHandler  *goodsh.Handler
 	Cfg           *config.Config
 	Logger        *slog.Logger
+	RLS           *ratelimitstore.RateLimitStorage
 }
 
 func New(
@@ -20,11 +22,13 @@ func New(
 	goodsHandler *goodsh.Handler,
 	cfg *config.Config,
 	logger *slog.Logger,
+	rls *ratelimitstore.RateLimitStorage,
 ) *Dependencies {
 	return &Dependencies{
 		OrdersHandler: ordersHandler,
 		GoodsHandler:  goodsHandler,
 		Cfg:           cfg,
 		Logger:        logger,
+		RLS:           rls,
 	}
 }

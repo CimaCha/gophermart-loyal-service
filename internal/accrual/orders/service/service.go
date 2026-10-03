@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/repository"
 	"github.com/google/uuid"
-	"log/slog"
 )
 
 type OrderNotifier interface {

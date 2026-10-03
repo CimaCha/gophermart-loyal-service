@@ -16,15 +16,14 @@ logger:
 ## RATE LIMIT ROUTES CONFIG ##
 rate_limits:
   cleanup_interval: 5m
-
-  register:
-    key_prefix: register
-    window: 1m
-    max_requests: 5
-  login:
-    key_prefix: login
-    window: 3m
-    max_requests: 10
+  
+  routes:
+    register:
+      window: 1m
+      max_requests: 5
+    login:
+      window: 3m
+      max_requests: 10
   # withdraw:
   #   window: 5m
   #   max_requests: 20

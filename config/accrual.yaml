@@ -15,7 +15,10 @@ logger:
 
 ## RATE LIMIT ROUTES CONFIG ##
 rate_limits:
+  cleanup_interval: 30m
 
+  routes:
+    getorders:
+      window: 1m
+      max_requests: 1024
 
-## SOME WORKER HERE ##
-worker:
