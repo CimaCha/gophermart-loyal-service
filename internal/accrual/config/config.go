@@ -5,17 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/slogger"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
 type Config struct {
 	Server *httpserver.Config
 	DB     *postgres.Config
 	Logger *slogger.Config
-	RLS    *ratelimit.Config
 }
 
 type envParser interface {
@@ -57,16 +55,10 @@ func Load(args []string) (*Config, error) {
 		return nil, fmt.Errorf("slogger config: %w", err)
 	}
 
-	rateLimitStorage, err := ratelimit.LoadFromYAML(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("rate limit config: %w", err)
-	}
-
 	return &Config{
 		Server: serverConfig,
 		DB:     dbConfig,
 		Logger: logConfig,
-		RLS:    rateLimitStorage,
 	}, nil
 
 }

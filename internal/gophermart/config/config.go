@@ -6,11 +6,11 @@ import (
 	"os"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/accrualclient"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/slogger"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
 type Config struct {
@@ -18,7 +18,7 @@ type Config struct {
 	Accrual *accrualclient.Config
 	DB      *postgres.Config
 	Logger  *slogger.Config
-	RLS     *ratelimit.Config
+	RLS     *ratelimitstore.Config
 	W       *worker.Config
 }
 

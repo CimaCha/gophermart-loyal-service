@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/core/deps"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/middleware"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/middleware"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
@@ -12,11 +12,11 @@ import (
 func registerUserRoutes(r chi.Router, deps *deps.Dependencies) {
 	r.With(
 		chimiddleware.AllowContentType("application/json"),
-		middleware.RateLimit(deps.Limiter, deps.Cfg.RLS.Register),
+		middleware.RateLimit(deps.RLS, deps.Cfg.RLS.Register),
 	).Post("/register", deps.UserHandler.RegisterUser)
 
 	r.With(
 		chimiddleware.AllowContentType("application/json"),
-		middleware.RateLimit(deps.Limiter, deps.Cfg.RLS.Login),
+		middleware.RateLimit(deps.RLS, deps.Cfg.RLS.Login),
 	).Post("/login", deps.UserHandler.LoginUser)
 }

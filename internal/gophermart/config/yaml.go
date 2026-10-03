@@ -6,15 +6,15 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/slogger"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
 type yamlConfig struct {
-	Logger *slogger.Config   `yaml:"logger"`
-	RLS    *ratelimit.Config `yaml:"rate_limits"`
-	Worker *worker.Config    `yaml:"worker"`
+	Logger *slogger.Config        `yaml:"logger"`
+	RLS    *ratelimitstore.Config `yaml:"rate_limits"`
+	Worker *worker.Config         `yaml:"worker"`
 }
 
 func loadYAML(path string) (*yamlConfig, error) {

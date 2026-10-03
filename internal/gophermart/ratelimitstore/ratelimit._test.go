@@ -1,4 +1,4 @@
-package ratelimit
+package ratelimitstore
 
 import (
 	"context"
@@ -138,7 +138,7 @@ func TestRateLimitStorage_CleanupWorker(t *testing.T) {
 		CleanupInterval: 10 * time.Millisecond,
 	}
 
-	storage := NewRLS(ctx, cfg, newTestLogger())
+	storage := New(ctx, cfg, newTestLogger())
 
 	storage.m["expired"] = &Item{
 		c:         1,

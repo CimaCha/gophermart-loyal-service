@@ -7,8 +7,8 @@ import (
 	balansh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/handler"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/config"
 	orderh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/handler"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	userh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
 )
 
 type Dependencies struct {
@@ -16,7 +16,7 @@ type Dependencies struct {
 	OrderHandler   *orderh.Handler
 	BalanceHandler *balansh.Handler
 	TokenSvc       *authentication.TokenService
-	Limiter        *ratelimit.RateLimitStorage
+	RLS            *ratelimitstore.RateLimitStorage
 	Cfg            *config.Config
 	Logger         *slog.Logger
 }
@@ -26,7 +26,7 @@ func New(
 	orderHandler *orderh.Handler,
 	balanceHandler *balansh.Handler,
 	tokenSvc *authentication.TokenService,
-	limiter *ratelimit.RateLimitStorage,
+	rls *ratelimitstore.RateLimitStorage,
 	cfg *config.Config,
 	logger *slog.Logger,
 ) *Dependencies {
@@ -35,7 +35,7 @@ func New(
 		OrderHandler:   orderHandler,
 		BalanceHandler: balanceHandler,
 		TokenSvc:       tokenSvc,
-		Limiter:        limiter,
+		RLS:            rls,
 		Cfg:            cfg,
 		Logger:         logger,
 	}

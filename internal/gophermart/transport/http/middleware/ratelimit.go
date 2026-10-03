@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 )
 
 type RateLimiter interface {
 	Incr(key string, window time.Duration) (int, time.Time)
 }
 
-func RateLimit(limiter RateLimiter, cfg ratelimit.RateLimitConfig) Middleware {
+func RateLimit(limiter RateLimiter, cfg ratelimitstore.RateLimitConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip, _, err := net.SplitHostPort(r.RemoteAddr)

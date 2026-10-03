@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
+	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,7 +32,7 @@ func TestRateLimit_CallsNextHandler(t *testing.T) {
 		exp:   time.Now().Add(time.Minute),
 	}
 
-	cfg := ratelimit.RateLimitConfig{
+	cfg := ratelimitstore.RateLimitConfig{
 		KeyPrefix:   "login",
 		Window:      time.Minute,
 		MaxRequests: 5,
@@ -67,7 +67,7 @@ func TestRateLimit_TooManyRequests(t *testing.T) {
 		exp:   time.Now().Add(30 * time.Second),
 	}
 
-	cfg := ratelimit.RateLimitConfig{
+	cfg := ratelimitstore.RateLimitConfig{
 		KeyPrefix:   "login",
 		Window:      time.Minute,
 		MaxRequests: 5,
@@ -96,7 +96,7 @@ func TestRateLimit_InvalidRemoteAddr(t *testing.T) {
 
 	mock := &rateLimiterMock{}
 
-	cfg := ratelimit.RateLimitConfig{
+	cfg := ratelimitstore.RateLimitConfig{
 		KeyPrefix:   "login",
 		Window:      time.Minute,
 		MaxRequests: 5,
@@ -124,7 +124,7 @@ func TestRateLimit_UsesLimiterArguments(t *testing.T) {
 		exp:   time.Now().Add(time.Minute),
 	}
 
-	cfg := ratelimit.RateLimitConfig{
+	cfg := ratelimitstore.RateLimitConfig{
 		KeyPrefix:   "register",
 		Window:      5 * time.Minute,
 		MaxRequests: 10,

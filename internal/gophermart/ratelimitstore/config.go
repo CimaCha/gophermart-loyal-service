@@ -1,4 +1,4 @@
-package ratelimit
+package ratelimitstore
 
 import (
 	"errors"

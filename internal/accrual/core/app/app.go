@@ -3,22 +3,22 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
+
 	goodsh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler"
 	goodsrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/repository"
 	goodssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/service"
 	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/handler"
 	ordersrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/repository"
 	orderssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
-	middleware2 "github.com/CimaCha/gophermart-loyal-service/internal/shared/transport/http/middleware"
-	"log/slog"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpmiddleware"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/core/deps"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/transport/http/router"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/db/postgres"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/httpserver"
-	"github.com/CimaCha/gophermart-loyal-service/internal/shared/ratelimit"
 	migrations "github.com/CimaCha/gophermart-loyal-service/migrations/accrual"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
 	"github.com/shopspring/decimal"
 
 	"github.com/go-chi/chi/v5"
@@ -47,8 +47,6 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
 
-	limiter := ratelimit.NewRLS(ctx, cfg.RLS, log)
-
 	orderRepo := ordersrepo.New(pool)
 	goodsRepo := goodsrepo.New(pool)
 
@@ -61,16 +59,15 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	dependencies := deps.New(
 		orderHandler,
 		goodsHandler,
-		limiter,
 		cfg,
 		log,
 	)
 
 	rootRouter.Use(
 		chimiddleware.Recoverer,
-		middleware2.RequestID(),
-		middleware2.Logging(log),
-		middleware2.GzipCompress(),
+		httpmiddleware.RequestID(),
+		httpmiddleware.Logging(log),
+		httpmiddleware.GzipCompress(),
 	)
 
 	// Регистрируем все маршруты здесь

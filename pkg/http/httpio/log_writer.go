@@ -1,4 +1,4 @@
-package httpresponse
+package httpio
 
 import "net/http"
 
@@ -17,7 +17,7 @@ var (
 	StatusCodeUninitialized = -1
 )
 
-func New(w http.ResponseWriter) *LoggingResponseWriter {
+func NewLoggingResponseWriter(w http.ResponseWriter) *LoggingResponseWriter {
 	return &LoggingResponseWriter{
 		ResponseWriter: w,
 		responseData: &responseData{
