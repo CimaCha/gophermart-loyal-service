@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -31,4 +32,27 @@ func (r *GoodsRepository) RegisterGoods(ctx context.Context, goods model.GoodsIn
 		}
 	}
 	return err
+}
+
+func (r *GoodsRepository) GetAllGoods(ctx context.Context) ([]model.GoodsInfo, error) {
+	rows, err := r.pool.Query(ctx, `SELECT match, reward_value, reward_type FROM rewards`)
+	if err != nil {
+		return nil, fmt.Errorf("pool query: %w", err)
+	}
+	defer rows.Close()
+
+	var goods []model.GoodsInfo
+	for rows.Next() {
+		var g model.GoodsInfo
+		if err := rows.Scan(&g.Match, &g.Reward, &g.RewardType); err != nil {
+			return nil, fmt.Errorf("rows scan: %w", err)
+		}
+		goods = append(goods, g)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %w", err)
+	}
+
+	return goods, nil
 }
