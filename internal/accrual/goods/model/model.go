@@ -13,7 +13,7 @@ const (
 
 type GoodsInfo struct {
 	Match      string           `json:"match"`
-	Reward     *decimal.Decimal `json:"reward"`
+	Reward     *decimal.Decimal `json:"reward,omitempty"`
 	RewardType RewardType       `json:"reward_type"`
 }
 
