@@ -34,9 +34,11 @@ func validGoods() model.GoodsInfo {
 // передаётся в репозиторий без изменений.
 func TestService_RegisterGoods_Success(t *testing.T) {
 	repo := mock.NewMockGoodsRepository(t)
+	goodsAdder := mock.NewMockGoodsCacheAdder(t)
 	repo.On("RegisterGoods", testifymock.Anything, testifymock.Anything).Return(nil)
+	goodsAdder.On("Add", testifymock.Anything).Return(nil)
 
-	svc := New(repo)
+	svc := New(repo, goodsAdder)
 	err := svc.RegisterGoods(context.Background(), validGoods())
 
 	require.NoError(t, err)
@@ -47,7 +49,8 @@ func TestService_RegisterGoods_Success(t *testing.T) {
 // Мок не настроен намеренно: вызов repo.RegisterGoods = паника, если валидация пропущена.
 func TestService_RegisterGoods_InvalidGoods(t *testing.T) {
 	repo := mock.NewMockGoodsRepository(t)
-	svc := New(repo)
+	goodsAdder := mock.NewMockGoodsCacheAdder(t)
+	svc := New(repo, goodsAdder)
 
 	goods := validGoods()
 	goods.Match = "" // пустой match
@@ -64,7 +67,8 @@ func TestService_RegisterGoods_RepoError(t *testing.T) {
 	repo.On("RegisterGoods", testifymock.Anything, testifymock.Anything).
 		Return(model.ErrMatchAlreadyExists)
 
-	svc := New(repo)
+	goodsAdder := mock.NewMockGoodsCacheAdder(t)
+	svc := New(repo, goodsAdder)
 	err := svc.RegisterGoods(context.Background(), validGoods())
 
 	require.ErrorIs(t, err, model.ErrMatchAlreadyExists)
