@@ -18,7 +18,7 @@ func TestUploadOrder_Success(t *testing.T) {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	svc := New(repo, log)
+	svc := New(repo, log, notifier)
 	svc.notifier = notifier
 
 	order := model.Order{
@@ -53,7 +53,7 @@ func TestUploadOrder_InvalidOrderNumber(t *testing.T) {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	svc := New(repo, log)
+	svc := New(repo, log, nil)
 
 	order := model.Order{
 		OrderNum: "12345",

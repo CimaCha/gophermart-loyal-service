@@ -35,10 +35,12 @@ var (
 func New(
 	repo OrderRepository,
 	log *slog.Logger,
+	notifier OrderNotifier,
 ) *OrderService {
 	return &OrderService{
-		repo:   repo,
-		logger: log,
+		repo:     repo,
+		logger:   log,
+		notifier: notifier,
 	}
 }
 

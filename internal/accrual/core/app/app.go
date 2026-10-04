@@ -65,7 +65,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	// Создаём воркер для обработки заказов
 	orderWorker := worker.New(orderRepo, goodsCache, log, cfg.W)
 
-	orderSvc := orderssvc.New(orderRepo, log)
+	orderSvc := orderssvc.New(orderRepo, log, orderWorker)
 	goodsSvc := goodssvc.New(goodsRepo, goodsCache)
 
 	orderHandler := ordersh.New(log, orderSvc)
