@@ -1,3 +1,5 @@
+// Package httpserver предоставляет абстракцию над стандартным http.Server
+// для удобного запуска и плавного (graceful) завершения работы сервера.
 package httpserver
 
 import (
@@ -9,11 +11,15 @@ import (
 	"time"
 )
 
+// HTTPServer оборачивает стандартный HTTP-сервер и логгер,
+// обеспечивая управление жизненным циклом приложения.
 type HTTPServer struct {
 	sv  *http.Server
 	log *slog.Logger
 }
 
+// New создает и инициализирует новый экземпляр HTTPServer.
+// Принимает обработчик запросов (handler), конфигурацию сервера (cfg) и настроенный slog.Logger.
 func New(handler http.Handler, cfg *Config, log *slog.Logger) *HTTPServer {
 	return &HTTPServer{
 		sv: &http.Server{
@@ -24,6 +30,8 @@ func New(handler http.Handler, cfg *Config, log *slog.Logger) *HTTPServer {
 	}
 }
 
+// Run запускает HTTP-сервер в отдельной горутине и блокирует текущий поток выполнения
+// до возникновения критической ошибки или до сигнала отмены контекста ctx (Graceful Shutdown).
 func (s *HTTPServer) Run(ctx context.Context) error {
 
 	chErr := make(chan error, 1)

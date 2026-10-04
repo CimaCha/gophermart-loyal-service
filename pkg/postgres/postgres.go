@@ -1,3 +1,5 @@
+// Package postgres предоставляет инструменты для настройки и работы
+// с реляционной базой данных PostgreSQL.
 package postgres
 
 import (

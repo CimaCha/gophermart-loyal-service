@@ -1,3 +1,5 @@
+// Package model содержит структуры данных, доменные модели и логику валидации
+// для подсистемы ведения баланса и учета списания баллов лояльности.
 package model
 
 import (
@@ -8,18 +10,29 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Balance представляет доменную модель текущего финансового состояния счета пользователя,
+// включая доступные средства и общую сумму ранее списанных баллов.
 type Balance struct {
-	UserID    uuid.UUID       `json:"-"`
-	Current   decimal.Decimal `json:"current"`
+	// UserID содержит уникальный криптографический идентификатор владельца счета.
+	UserID uuid.UUID `json:"-"`
+	// Current определяет текущее количество доступных для списания баллов лояльности.
+	Current decimal.Decimal `json:"current"`
+	// Withdrawn фиксирует агрегированную сумму всех успешных списаний за всё время существования счета.
 	Withdrawn decimal.Decimal `json:"withdrawn"`
 }
 
-// Тело запроса POST /api/user/balance/withdraw.
+// WithdrawRequest описывает структуру тела входящего HTTP-запроса (JSON),
+// отправляемого пользователем для списания баллов в счет оплаты нового заказа.
 type WithdrawRequest struct {
-	Order string          `json:"order"`
-	Sum   decimal.Decimal `json:"sum"`
+	// Order содержит уникальный строковый номер заказа, на который оформляется списание.
+	Order string `json:"order"`
+	// Sum определяет точное количество баллов лояльности, запрашиваемых к выводу.
+	Sum decimal.Decimal `json:"sum"`
 }
 
+// Validate выполняет доменную валидацию полей запроса на списание средств.
+// Проверяет номер заказа по алгоритму Луна и контролирует, что запрашиваемая сумма строго положительна.
+// Возвращает ошибку ErrInvalidOrderNumber в случае несоответствия бизнес-правилам.
 func (r WithdrawRequest) Validate() error {
 	if !luhn.Validate(r.Order) {
 		return ErrInvalidOrderNumber
@@ -30,8 +43,13 @@ func (r WithdrawRequest) Validate() error {
 	return nil
 }
 
+// Withdrawal отражает историческую доменную модель одной успешной транзакции
+// по списанию баллов лояльности со счета пользователя.
 type Withdrawal struct {
-	Order       string          `json:"order"`
-	Sum         decimal.Decimal `json:"sum"`
-	ProcessedAt time.Time       `json:"processed_at"`
+	// Order содержит строковый номер заказа, в рамках которого производилась оплата баллами.
+	Order string `json:"order"`
+	// Sum определяет количество списанных баллов по данной операции.
+	Sum decimal.Decimal `json:"sum"`
+	// ProcessedAt фиксирует точное время успешного проведения транзакции списания.
+	ProcessedAt time.Time `json:"processed_at"`
 }

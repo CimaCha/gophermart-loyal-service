@@ -1,3 +1,5 @@
+// Package handler предоставляет HTTP-обработчики для регистрации новых заказов пользователей
+// и получения истории загруженных заказов с актуальными статусами их обработки.
 package handler
 
 import (
@@ -17,16 +19,23 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// OrderService определяет интерфейс бизнес-логики для управления заказами пользователей,
+// который должен быть реализован сервисным слоем.
 type OrderService interface {
+	// UploadOrder регистрирует новый номер заказа в системе для последующего расчета баллов.
 	UploadOrder(ctx context.Context, orderNumStr string, uid uuid.UUID) error
+	// GetOrders извлекает полный перечень всех заказов, загруженных конкретным пользователем.
 	GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error)
 }
 
+// Handler инкапсулирует структурированный логгер и интерфейс сервисного слоя
+// для обработки входящих HTTP-запросов подсистемы заказов.
 type Handler struct {
 	l   *slog.Logger
 	svc OrderService
 }
 
+// New создает и инициализирует новый экземпляр Handler с необходимыми внешними зависимостями.
 func New(
 	log *slog.Logger,
 	service OrderService,
@@ -37,15 +46,27 @@ func New(
 	}
 }
 
+// OrderResponse описывает структуру JSON-ответа при выгрузке истории заказов клиента.
 type OrderResponse struct {
-	OrderNum   string           `json:"number"`
-	Status     string           `json:"status"`
-	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
-	UploadedAt time.Time        `json:"uploaded_at"`
+	// OrderNum содержит уникальный номер заказа.
+	OrderNum string `json:"number"`
+	// Status отражает текстовое представление текущего этапа обработки (NEW, PROCESSING и т.д.).
+	Status string `json:"status"`
+	// Accrual определяет сумму начисленных баллов (поле отсутствует в JSON, если расчет не завершен).
+	Accrual *decimal.Decimal `json:"accrual,omitempty"`
+	// UploadedAt фиксирует точное время добавления заказа в систему.
+	UploadedAt time.Time `json:"uploaded_at"`
 }
 
 const maxBodySize = 32
 
+// GetOrders обрабатывает HTTP-запрос на получение истории всех загруженных заказов авторизованного пользователя.
+// Идентификатор пользователя автоматически извлекается из контекста запроса.
+// Возвращаемые HTTP-статусы:
+//   - 200 OK — история успешно найдена и возвращена в виде JSON-массива.
+//   - 204 No Content — у пользователя еще нет ни одного зарегистрированного заказа.
+//   - 499 Client Closed Request — обработка запроса была прервана клиентом на этапе ожидания данных.
+//   - 500 Internal Server Error — непредвиденная ошибка контекста или СУБД.
 func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	uid, err := ctxkeys.GetUserID(r.Context())
 	if err != nil {
@@ -112,6 +133,17 @@ func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// CreateOrder обрабатывает HTTP-запрос на регистрацию нового заказа в системе лояльности.
+// Номер заказа принимается в виде необработанной текстовой строки (text/plain) в теле запроса.
+// Метод включает встроенное ограничение размера тела (MaxBytesReader) для защиты от DoS-атак.
+// Возвращаемые HTTP-статусы:
+//   - 202 StatusAccepted — новый номер заказа успешно принят в обработку.
+//   - 200 OK — заказ уже был загружен этим пользователем ранее.
+//   - 400 Bad Request — пустое тело запроса или ошибка чтения данных.
+//   - 409 Conflict — этот номер заказа уже заведен в систему другим пользователем.
+//   - 422 Unprocessable Entity — невалидный номер заказа (ошибка контрольной суммы Луна).
+//   - 499 Client Closed Request — выполнение операции прервано клиентом.
+//   - 500 Internal Server Error — внутренняя ошибка авторизационного контекста или СУБД.
 func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	// Защита от DDos атак если отправляют запрос с телом размера в гигабайты

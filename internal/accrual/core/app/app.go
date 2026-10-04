@@ -1,3 +1,6 @@
+// Package app является точкой сборки всего микросервиса (DI-контейнером).
+// Отвечает за инициализацию пулов соединений, кэшей, бизнес-логики,
+// маршрутизации, middleware и фоновых воркеров, собирая их в единое приложение.
 package app
 
 import (
@@ -29,13 +32,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// App объединяет в себе все ключевые компоненты запущенного приложения,
+// предоставляя интерфейс для его централизованного старта и остановки.
 type App struct {
-	Server  *httpserver.HTTPServer
+	// Server управляет жизненным циклом HTTP-сервера.
+	Server *httpserver.HTTPServer
+	// Pgxpool представляет собой пул соединений к СУБД PostgreSQL.
 	Pgxpool *pgxpool.Pool
-
+	// Worker отвечает за асинхронную фоновую обработку начисления баллов лояльности.
 	Worker *worker.Worker
 }
 
+// New создает, связывает зависимости (Dependency Injection) и возвращает готовый к работе экземпляр App.
+// Производит автоматический запуск миграций базы данных и предварительный прогрев (warm-up) кэша правил вознаграждений.
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	// Отключаем кавычки при JSON-сериализации decimal.Decimal,
@@ -97,6 +106,8 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 }
 
+// Run параллельно запускает фонового воркера обработки начислений и блокирует основной поток выполнения
+// на время работы HTTP-сервера до момента получения сигнала остановки через ctx.
 func (a *App) Run(ctx context.Context) error {
 
 	go a.Worker.Run(ctx)

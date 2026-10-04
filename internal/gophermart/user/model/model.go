@@ -1,3 +1,5 @@
+// Package model содержит структуры данных, доменные модели и DTO
+// для управления профилями, учетными записями и учетными данными пользователей.
 package model
 
 import (
@@ -6,14 +8,24 @@ import (
 	"github.com/google/uuid"
 )
 
+// Credentials описывает входящую JSON-структуру (DTO) для передачи
+// аутентификационных данных (логина и незахешированного пароля) при регистрации или входе.
 type Credentials struct {
-	Login    string `json:"login"`
+	// Login содержит уникальное строковое имя (логин) пользователя.
+	Login string `json:"login"`
+	// Password содержит открытый текстовый пароль, присланный клиентом.
 	Password string `json:"password"`
 }
 
+// UserInfo представляет доменную модель учетной записи пользователя в системе,
+// инкапсулирующую его уникальный UUID, логин, криптографический хеш пароля и дату регистрации.
 type UserInfo struct {
-	UUID         uuid.UUID
-	Login        string
+	// UUID хранит уникальный криптографический идентификатор пользователя (RFC 4122).
+	UUID uuid.UUID
+	// Login содержит строковое имя (логин) учетной записи.
+	Login string
+	// PasswordHash содержит вычисленный криптографический хеш пароля (например, Argon2id).
 	PasswordHash string
-	CreatedAt    time.Time
+	// CreatedAt фиксирует точную дату и время регистрации аккаунта в системе.
+	CreatedAt time.Time
 }

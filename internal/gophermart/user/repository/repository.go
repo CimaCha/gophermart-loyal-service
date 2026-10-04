@@ -1,3 +1,5 @@
+// Package repository предоставляет функционал для взаимодействия со слоем персистентного хранения данных
+// для управления учетными записями пользователей, их аутентификационными данными и кошельками в СУБД PostgreSQL.
 package repository
 
 import (
@@ -13,20 +15,27 @@ import (
 )
 
 var (
+	// ErrUserAlreadyExists возвращается, если при попытке регистрации пользователя обнаруживается,
+	// что логин (уникальный ключ) уже занят другим аккаунтом.
 	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrUserNotFound      = errors.New("user not found")
+	// ErrUserNotFound возвращается, если в процессе аутентификации или поиска пользователь с указанным логином не найден.
+	ErrUserNotFound = errors.New("user not found")
 )
 
+// UserRepository реализует методы доступа к PostgreSQL для управления данными пользователей.
 type UserRepository struct {
 	pool *pgxpool.Pool
 }
 
+// New создает и инициализирует новый экземпляр UserRepository с использованием переданного пула соединений.
 func New(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{
 		pool: pool,
 	}
 }
 
+// FindUserInfo выполняет поиск и извлечение полной информации о пользователе по его уникальному строковому логину.
+// Если запись отсутствует в таблице users, метод перехватывает ошибку pgx.ErrNoRows и возвращает доменную ошибку ErrUserNotFound.
 func (r *UserRepository) FindUserInfo(ctx context.Context, userLogin string) (*model.UserInfo, error) {
 	userInfo := &model.UserInfo{}
 	query := `
@@ -43,6 +52,9 @@ func (r *UserRepository) FindUserInfo(ctx context.Context, userLogin string) (*m
 	return userInfo, nil
 }
 
+// SaveUserInfo атомарно (в рамках транзакции) регистрирует нового пользователя в системе:
+// 1. Создает запись в таблице users. В случае коллизии по уникальному логину (код ошибки 23505), возвращает ErrUserAlreadyExists.
+// 2. Инициализирует пустой стартовый кошелек с нулевым балансом в таблице balance, связанный с UUID нового пользователя.
 func (r *UserRepository) SaveUserInfo(ctx context.Context, userInfo model.UserInfo) error {
 
 	tx, err := r.pool.Begin(ctx)

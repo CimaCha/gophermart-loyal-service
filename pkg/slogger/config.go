@@ -1,3 +1,5 @@
+// Package slogger предоставляет структуры и функции для конфигурации
+// многопоточного логирования с поддержкой вывода в консоль (stdout) и файлы на основе YAML-файлов.
 package slogger
 
 import (
@@ -10,51 +12,67 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// Format определяет строковый тип для представления формата вывода логов.
 type Format string
 
 const (
+	// FormatText представляет текстовый формат логирования (через slog.NewTextHandler).
 	FormatText Format = "text"
+	// FormatJSON представляет формат логирования в виде JSON-структур (через slog.NewJSONHandler).
 	FormatJSON Format = "json"
 )
 
+// Level определяет строковый тип для представления уровней важности логов.
 type Level string
 
 const (
+	// LevelDebug обозначает отладочный уровень логирования.
 	LevelDebug Level = "debug"
-	LevelInfo  Level = "info"
-	LevelWarn  Level = "warn"
+	// LevelInfo обозначает стандартный информационный уровень логирования.
+	LevelInfo Level = "info"
+	// LevelWarn обозначает уровень логирования для предупреждений.
+	LevelWarn Level = "warn"
+	// LevelError обозначает уровень логирования для ошибок.
 	LevelError Level = "error"
 )
 
+// Config описывает корневую структуру файла конфигурации логгера.
 type Config struct {
-	// Директория с log файлами
+	// Directory задает путь к папке, в которой будут создаваться файлы логов.
 	Directory string `yaml:"directory"`
 
-	// Структура с конфигурацией для вывода в stdout (консоль)
+	// Stdout содержит настройки для вывода логов в консоль.
 	Stdout StdoutConfig `yaml:"stdout"`
-	// Слайс структур с конфигурациями для файлов логов
+	// Files содержит коллекцию настроек для файловых логгеров.
 	Files []FileConfig `yaml:"files"`
 }
 
+// StdoutConfig описывает параметры вывода логов в стандартный поток вывода (консоль).
 type StdoutConfig struct {
-	// Enabled даёт возможность выключить вывод логов через конфигурацию
+	// Enabled активирует или деактивирует вывод логов в консоль.
 	Enabled bool `yaml:"enabled"`
-	// Format задаёт формат вывода в виде json или text
+	// Format задает структуру вывода (json или text).
 	Format Format `yaml:"format"`
-
+	// Level определяет минимальный уровень логирования для консоли.
 	Level Level `yaml:"level"`
-	// Можно использовать любой Writer + удобно для unit тестов
+	// Writer абстрагирует целевой поток вывода (по умолчанию os.Stdout, полезно для тестов).
 	Writer io.Writer `yaml:"-"`
 }
 
+// FileConfig описывает параметры вывода логов в отдельный файл.
 type FileConfig struct {
+	// Name задает уникальное имя или относительный путь для файла лога.
 	Name string `yaml:"name"`
-
-	Enabled bool   `yaml:"enabled"`
-	Format  Format `yaml:"format"`
-	Level   Level  `yaml:"level"`
+	// Enabled активирует или деактивирует ведение данного файла логов.
+	Enabled bool `yaml:"enabled"`
+	// Format задает структуру вывода (json или text) для файла.
+	Format Format `yaml:"format"`
+	// Level определяет минимальный уровень логирования для файла.
+	Level Level `yaml:"level"`
 }
 
+// Validate проверяет валидность всей конфигурации логирования, включая
+// параметры консоли, файлов и отсутствие дублирования имен конфигураций файлов.
 func (c *Config) Validate() error {
 
 	if c == nil {
@@ -84,6 +102,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// Validate проверяет корректность параметров конфигурации вывода в консоль.
 func (c *StdoutConfig) Validate() error {
 
 	if c == nil {
@@ -105,6 +124,7 @@ func (c *StdoutConfig) Validate() error {
 	return nil
 }
 
+// Validate проверяет корректность параметров конфигурации вывода в файл.
 func (c *FileConfig) Validate() error {
 
 	if c == nil {
@@ -130,6 +150,7 @@ func (c *FileConfig) Validate() error {
 	return nil
 }
 
+// Valid проверяет, соответствует ли строковое значение формата одному из допустимых типов (text, json).
 func (f Format) Valid() bool {
 	switch f {
 	case FormatText, FormatJSON:
@@ -139,6 +160,7 @@ func (f Format) Valid() bool {
 	}
 }
 
+// Valid проверяет, входит ли строковое значение уровня в список поддерживаемых (debug, info, warn, error).
 func (l Level) Valid() bool {
 	switch l {
 	case LevelDebug, LevelInfo, LevelWarn, LevelError:
@@ -148,6 +170,8 @@ func (l Level) Valid() bool {
 	}
 }
 
+// LoadFromYAML считывает файл по указанному пути, декодирует его структуру из формата YAML
+// и инициализирует дефолтный Writer для потока stdout.
 func LoadFromYAML(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -160,12 +184,13 @@ func LoadFromYAML(path string) (*Config, error) {
 		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
 
-	// по умолчанию os.Stdout
+	// По умолчанию используется стандартный вывод операционной системы
 	cfg.Stdout.Writer = os.Stdout
 
 	return &cfg, nil
 }
 
+// SlogLevel сопоставляет внутренний строковый тип Level с соответствующей константой уровня из пакета log/slog.
 func (l Level) SlogLevel() slog.Level {
 	switch l {
 	case LevelDebug:

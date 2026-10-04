@@ -1,3 +1,5 @@
+// Package handler предоставляет HTTP-обработчики для регистрации новых пользователей,
+// аутентификации существующих учетных записей и управления авторизационными куками.
 package handler
 
 import (
@@ -14,16 +16,21 @@ import (
 
 var errInvalidCredentialsRequest = errors.New("invalid credentials request")
 
+// UserService определяет интерфейс взаимодействия со слоем бизнес-логики пользователей.
 type UserService interface {
+	// CreateUser регистрирует нового пользователя и возвращает сгенерированный JWT-токен.
 	CreateUser(ctx context.Context, userLogin string, password string) (string, error)
+	// LoginUser проверяет учетные данные и возвращает JWT-токен при успешном входе.
 	LoginUser(ctx context.Context, userLogin string, password string) (string, error)
 }
 
+// Handler инкапсулирует структурированный логгер и интерфейс UserService для обработки входящих HTTP-запросов.
 type Handler struct {
 	logger  *slog.Logger
 	service UserService
 }
 
+// New создает и инициализирует новый экземпляр Handler подсистемы управления пользователями.
 func New(logger *slog.Logger, userService UserService) *Handler {
 	return &Handler{
 		logger:  logger,
@@ -31,6 +38,12 @@ func New(logger *slog.Logger, userService UserService) *Handler {
 	}
 }
 
+// RegisterUser обрабатывает HTTP-запрос на регистрацию нового аккаунта.
+// Декодирует пару логин/пароль из JSON-тела запроса и транслирует результаты бизнес-логики:
+//   - 200 OK — пользователь успешно создан, авторизационный токен установлен в куку `jwt`.
+//   - 400 Bad Request — невалидный JSON, пустые поля или наличие избыточных данных в теле запроса.
+//   - 409 Conflict — переданный логин уже занят другим пользователем.
+//   - 500 Internal Server Error — непредвиденная ошибка на стороне хранилища.
 func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request) {
 	credentials, err := decodeCredentials(request.Body)
 	if err != nil {
@@ -48,6 +61,12 @@ func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request
 	writer.WriteHeader(http.StatusOK)
 }
 
+// LoginUser обрабатывает HTTP-запрос на аутентификацию и вход существующего пользователя.
+// Декодирует учетные данные из JSON-тела и сверяет их со слоем бизнес-логики:
+//   - 200 OK — успешная аутентификация, обновленный авторизационный токен записан в куку `jwt`.
+//   - 400 Bad Request — некорректная структура JSON-запроса или пустые поля.
+//   - 401 Unauthorized — передан неверный логин или пароль.
+//   - 500 Internal Server Error — внутренняя ошибка выполнения запроса к СУБД.
 func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
 	credentials, err := decodeCredentials(request.Body)
 	if err != nil {

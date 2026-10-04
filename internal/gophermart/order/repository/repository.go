@@ -1,3 +1,5 @@
+// Package repository предоставляет функционал для взаимодействия со слоем персистентного хранения данных
+// для сущностей заказов пользователей в СУБД PostgreSQL.
 package repository
 
 import (
@@ -12,21 +14,30 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// OrderRepository реализует методы доступа к PostgreSQL для управления заказами пользователей.
 type OrderRepository struct {
 	pool *pgxpool.Pool
 }
 
 var (
+	// ErrOrderAlreadyCreatedByAnotherUser возвращается, если при попытке регистрации заказа обнаруживается,
+	// что этот номер заказа уже был загружен другим пользователем системы.
 	ErrOrderAlreadyCreatedByAnotherUser = errors.New("order already created by another user")
-	ErrOrderAlreadyProcessing           = errors.New("order has already been uploaded by this user")
+	// ErrOrderAlreadyProcessing возвращается, если текущий пользователь пытается повторно загрузить
+	// свой собственный заказ, который уже находится в обработке или обработан.
+	ErrOrderAlreadyProcessing = errors.New("order has already been uploaded by this user")
 )
 
+// New создает и инициализирует новый экземпляр OrderRepository с использованием переданного пула соединений.
 func New(pool *pgxpool.Pool) *OrderRepository {
 	return &OrderRepository{
 		pool: pool,
 	}
 }
 
+// UpdateOrderResultTx обновляет статус заказа и итоговую сумму начисления (accrual) в рамках внешней открытой транзакции pgx.Tx.
+// Операция выполняется по принципу CAS (Compare-And-Swap) и блокируется, если заказ уже находится в терминальном состоянии (PROCESSED, INVALID).
+// Возвращает true, если строка была успешно обновлена.
 func (r *OrderRepository) UpdateOrderResultTx(
 	ctx context.Context,
 	tx pgx.Tx, orderNum string,
@@ -56,6 +67,8 @@ func (r *OrderRepository) UpdateOrderResultTx(
 	return result.RowsAffected() > 0, nil
 }
 
+// GetPendingOrders возвращает список всех недозавершенных заказов со статусами NEW или PROCESSING
+// для их последующей отправки на сверку во внешнюю систему расчетов.
 func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, error) {
 
 	query := `
@@ -95,6 +108,8 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, 
 	return orders, nil
 }
 
+// UpdateStatus выполняет безусловное обновление статуса конкретного заказа по его номеру.
+// Возвращает ошибку, если в базе данных не найдено записи с указанным номером.
 func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, status model.OrderStatus) error {
 
 	query := `
@@ -115,6 +130,8 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, sta
 
 }
 
+// GetOrders извлекает полный перечень всех заказов, загруженных конкретным пользователем (uid).
+// Результаты сортируются по дате загрузки в хронологическом порядке (от старых к новым).
 func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
 
 	query := `
@@ -157,6 +174,11 @@ func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model
 
 }
 
+// CreateOrder пытается зарегистрировать новый заказ в системе.
+// Использует атомарную вставку с разрешением конфликтов через upsert-механизм (ON CONFLICT DO UPDATE) и внутреннюю системную переменную xmax.
+// Позволяет бесконфликтно определить, кем именно и когда был создан данный заказ:
+//   - Если заказ уже существует и заведен другим пользователем, возвращает ErrOrderAlreadyCreatedByAnotherUser.
+//   - Если заказ повторно загружен текущим владельцем, возвращает ErrOrderAlreadyProcessing.
 func (r *OrderRepository) CreateOrder(ctx context.Context, order *model.Order) error {
 
 	query := `

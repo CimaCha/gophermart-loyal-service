@@ -1,3 +1,5 @@
+// Package config отвечает за сборку, парсинг и валидацию глобальной конфигурации
+// приложения из различных источников: флагов командной строки, переменных окружения и YAML-файла.
 package config
 
 import (
@@ -12,12 +14,19 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
+// Config объединяет в себе все конфигурационные подсистемы приложения:
+// HTTP-сервер, базу данных, систему логирования, лимитер запросов и воркеры.
 type Config struct {
+	// Server содержит параметры запуска HTTP-сервера.
 	Server *httpserver.Config
-	DB     *postgres.Config
+	// DB хранит строку подключения и параметры для PostgreSQL.
+	DB *postgres.Config
+	// Logger управляет конфигурацией вывода логов (консоль, файлы, уровни).
 	Logger *slogger.Config
-	RLS    *ratelimitstore.Config
-	W      *worker.Config
+	// RLS содержит настройки подсистемы Rate Limit Store.
+	RLS *ratelimitstore.Config
+	// W содержит параметры конфигурации фоновых воркеров обработки.
+	W *worker.Config
 }
 
 type envParser interface {
@@ -33,6 +42,12 @@ const (
 	configPathEnvVar  = "ACCRUAL_CONFIG_PATH"
 )
 
+// Load инициализирует, считывает и валидирует полную конфигурацию приложения.
+// Источники обрабатываются в следующем приоритете (от высшего к низшему):
+// 1. Переменные окружения (Environment Variables)
+// 2. Флаги командной строки (CLI Flags)
+// 3. Значения из конфигурационного YAML-файла
+// 4. Дефолтные значения подсистем.
 func Load(args []string) (*Config, error) {
 
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
