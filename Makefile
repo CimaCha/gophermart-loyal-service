@@ -1,3 +1,11 @@
+GOPHERMART_DIR=cmd/gophermart
+GOPHERMART_BIN=gophermart.exe
+ACCRUAL_DIR=cmd/accrual
+ACCRUAL_BIN=accrual.exe
+TESTER_NAME=gophermarttest.exe
+
+.PHONY: build test clean
+
 # ------------------------------------------------------------------------------
 # Run
 # ------------------------------------------------------------------------------
@@ -27,6 +35,24 @@ test-clean:
 # Запустить тесты во всем приложение
 test:
 	go test -v ./...
+
+build: 
+	go build -o $(GOPHERMART_DIR)/$(GOPHERMART_BIN) $(GOPHERMART_DIR)/main.go
+	go build -o $(ACCRUAL_DIR)/$(ACCRUAL_BIN) $(ACCRUAL_DIR)/main.go
+
+# Локально запустить тесты от практикум на гофермарт
+gophermart-test:
+	$(MAKE) build
+	./$(TESTER_NAME) \
+	-test.v -test.run=^TestGophermart$$ \
+	-gophermart-binary-path=$(GOPHERMART_DIR)/$(GOPHERMART_BIN) \
+	-gophermart-host=localhost \
+	-gophermart-port=8080 \
+	-gophermart-database-uri=postgres://postgres:vladon4ik7576@localhost:5433/gophermart \
+	-accrual-binary-path=$(ACCRUAL_DIR)/$(ACCRUAL_BIN) \
+	-accrual-host=localhost \
+	-accrual-port=8081 \
+	-accrual-database-uri=postgres://postgres:vladon4ik7576@localhost:5433/accrual
 
 # ------------------------------------------------------------------------------
 # Gophermart migrations

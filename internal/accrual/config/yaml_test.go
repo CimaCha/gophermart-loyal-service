@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,27 +11,26 @@ import (
 
 const validYAML = `
 logger:
-  directory: logs/accrual
+  directory: logs/test
   stdout:
     enabled: true
     format: text
     level: info
-  files:
-    - name: app
-      enabled: true
-      format: json
-      level: debug
 
 rate_limits:
-  cleanup_interval: 30m
-
+  cleanup_interval: 5m
   routes:
-    getorders:
+    register:
       window: 1m
-      max_requests: 1024
+      max_requests: 5
+
+worker:
+  polling_interval: 15s
+  worker_count: 16
+  jobs_queue_size: 100
+  target_rps: 50
 `
 
-// writeYAML создаёт временный файл с содержимым и возвращает путь к нему
 func writeYAML(t *testing.T, content string) string {
 	t.Helper()
 
@@ -46,7 +44,7 @@ func writeYAML(t *testing.T, content string) string {
 	return path
 }
 
-func TestLoadYAML_Success(t *testing.T) {
+func TestLoadYAML_FileSuccess(t *testing.T) {
 	path := writeYAML(t, validYAML)
 
 	cfg, err := loadYAML(path)
@@ -54,34 +52,54 @@ func TestLoadYAML_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	// Logger
 	require.NotNil(t, cfg.Logger)
-	assert.Equal(t, "logs/accrual", cfg.Logger.Directory)
-	assert.True(t, cfg.Logger.Stdout.Enabled)
-	require.Len(t, cfg.Logger.Files, 1)
-	assert.Equal(t, "app", cfg.Logger.Files[0].Name)
+	assert.Equal(t, "logs/test", cfg.Logger.Directory)
 
-	// RateLimits
 	require.NotNil(t, cfg.RLS)
-	assert.Equal(t, 30*time.Minute, cfg.RLS.CleanupInterval)
+	assert.NotNil(t, cfg.RLS.Routes["register"])
 
-	_, ok := cfg.RLS.Routes["getorders"]
-	assert.True(t, ok)
-
-	assert.Equal(t, time.Minute, cfg.RLS.Routes["getorders"].Window)
-	assert.Equal(t, 1024, cfg.RLS.Routes["getorders"].MaxRequests)
+	require.NotNil(t, cfg.Worker)
+	assert.Equal(t, 16, cfg.Worker.WorkerCount)
+	assert.Equal(t, 100, cfg.Worker.JobsQueueSize)
 }
 
-func TestLoadYAML_FileNotFound(t *testing.T) {
-	cfg, err := loadYAML(filepath.Join(t.TempDir(), "does-not-exist.yaml"))
+func TestLoadYAML_FileNotFoundUsesEmbeddedConfig(t *testing.T) {
+	path := filepath.Join(
+		t.TempDir(),
+		"not-exists.yaml",
+	)
 
-	require.Error(t, err)
-	assert.Nil(t, cfg)
-	assert.ErrorContains(t, err, "read config file")
+	cfg, err := loadYAML(path)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	assert.NotNil(t, cfg.Logger)
+	assert.NotNil(t, cfg.RLS)
+	assert.NotNil(t, cfg.Worker)
+}
+
+func TestLoadYAML_EmptyFileUsesEmbeddedConfig(t *testing.T) {
+	path := writeYAML(t, "")
+
+	cfg, err := loadYAML(path)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	assert.NotNil(t, cfg.Logger)
+	assert.NotNil(t, cfg.RLS)
+	assert.NotNil(t, cfg.Worker)
 }
 
 func TestLoadYAML_InvalidSyntax(t *testing.T) {
-	path := writeYAML(t, "logger: [this is not: a valid, mapping")
+	path := writeYAML(
+		t,
+		`
+logger:
+  - invalid
+`,
+	)
 
 	cfg, err := loadYAML(path)
 
@@ -90,52 +108,53 @@ func TestLoadYAML_InvalidSyntax(t *testing.T) {
 	assert.ErrorContains(t, err, "unmarshal config file")
 }
 
-// TestLoadYAML_MissingSection проверяет, что nil конфиг не валид
-func TestLoadYAML_MissingSection(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		check   func(t *testing.T, cfg *yamlConfig)
-	}{
-		{
-			name: "worker section missing",
-			content: `
-logger:
-  directory: logs
-  stdout:
-    enabled: false
-rate_limits:
-  cleanup_interval: 30m
+func TestLoad_DefaultEmbeddedConfig(t *testing.T) {
+	t.Setenv("RUN_ADDRESS", "localhost:8080")
+	t.Setenv("DATABASE_URI", "postgres://test")
 
-  routes:
-    getorders:
-      window: 1m
-      max_requests: 1024
-`,
-			check: func(t *testing.T, cfg *yamlConfig) {
-				assert.NotNil(t, cfg.Logger)
-				assert.NotNil(t, cfg.RLS)
-			},
-		},
-		{
-			name:    "all sections missing (empty file)",
-			content: ``,
-			check: func(t *testing.T, cfg *yamlConfig) {
-				assert.Nil(t, cfg.Logger)
-				assert.Nil(t, cfg.RLS)
-			},
-		},
-	}
+	cfg, err := Load(nil)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			path := writeYAML(t, tc.content)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
 
-			cfg, err := loadYAML(path)
+	assert.Equal(t, "localhost:8080", cfg.Server.Addr)
+	assert.Equal(t, "postgres://test", cfg.DB.URI)
 
-			require.NoError(t, err)
-			require.NotNil(t, cfg)
-			tc.check(t, cfg)
-		})
-	}
+	assert.NotNil(t, cfg.Logger)
+	assert.NotNil(t, cfg.RLS)
+	assert.NotNil(t, cfg.W)
+}
+
+func TestLoad_ConfigPathFlag(t *testing.T) {
+	path := writeYAML(t, validYAML)
+
+	t.Setenv("RUN_ADDRESS", "localhost:8080")
+	t.Setenv("DATABASE_URI", "postgres://test")
+
+	cfg, err := Load([]string{
+		"-config",
+		path,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	assert.Equal(t, "logs/test", cfg.Logger.Directory)
+	assert.Equal(t, 16, cfg.W.WorkerCount)
+}
+
+func TestLoad_ConfigPathEnv(t *testing.T) {
+	path := writeYAML(t, validYAML)
+
+	t.Setenv(configPathEnvVar, path)
+
+	t.Setenv("RUN_ADDRESS", "localhost:8080")
+	t.Setenv("DATABASE_URI", "postgres://test")
+
+	cfg, err := Load(nil)
+
+	require.NoError(t, err)
+
+	assert.Equal(t, "logs/test", cfg.Logger.Directory)
+	assert.Equal(t, 16, cfg.W.WorkerCount)
 }

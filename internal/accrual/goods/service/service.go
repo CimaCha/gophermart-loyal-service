@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 )
@@ -10,13 +11,19 @@ type GoodsRepository interface {
 	RegisterGoods(ctx context.Context, goods model.GoodsInfo) error
 }
 
-type GoodsService struct {
-	repo GoodsRepository
+type GoodsCacheAdder interface {
+	Add(rule model.GoodsInfo)
 }
 
-func New(goodsRepo GoodsRepository) *GoodsService {
+type GoodsService struct {
+	repo       GoodsRepository
+	goodsCache GoodsCacheAdder
+}
+
+func New(goodsRepo GoodsRepository, goodsCache GoodsCacheAdder) *GoodsService {
 	return &GoodsService{
-		repo: goodsRepo,
+		repo:       goodsRepo,
+		goodsCache: goodsCache,
 	}
 }
 
@@ -24,5 +31,12 @@ func (s *GoodsService) RegisterGoods(ctx context.Context, goods model.GoodsInfo)
 	if err := goods.Validate(); err != nil {
 		return err
 	}
-	return s.repo.RegisterGoods(ctx, goods)
+
+	if err := s.repo.RegisterGoods(ctx, goods); err != nil {
+		return fmt.Errorf("register goods: %w", err)
+	}
+
+	s.goodsCache.Add(goods)
+
+	return nil
 }

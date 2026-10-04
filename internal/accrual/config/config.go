@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
@@ -16,6 +17,7 @@ type Config struct {
 	DB     *postgres.Config
 	Logger *slogger.Config
 	RLS    *ratelimitstore.Config
+	W      *worker.Config
 }
 
 type envParser interface {
@@ -61,7 +63,7 @@ func Load(args []string) (*Config, error) {
 		return nil, fmt.Errorf("load yaml config: %w", err)
 	}
 
-	for _, v := range []validator{yc.Logger, yc.RLS, dbConfig, serverConfig} {
+	for _, v := range []validator{yc.Logger, yc.RLS, dbConfig, serverConfig, yc.Worker} {
 		if err := v.Validate(); err != nil {
 			return nil, fmt.Errorf("validate: %w", err)
 		}
@@ -72,6 +74,7 @@ func Load(args []string) (*Config, error) {
 		DB:     dbConfig,
 		Logger: yc.Logger,
 		RLS:    yc.RLS,
+		W:      yc.Worker,
 	}, nil
 
 }

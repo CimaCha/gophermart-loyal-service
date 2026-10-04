@@ -110,19 +110,6 @@ worker:
 	assert.Equal(t, 16, cfg.W.WorkerCount)
 }
 
-func TestLoad_ConfigFileNotFound(t *testing.T) {
-	t.Setenv(configPathEnvVar, "")
-
-	cfg, err := Load(
-		argsWithConfig("/does/not/exist/config.yaml"),
-	)
-
-	require.Error(t, err)
-	assert.Nil(t, cfg)
-
-	assert.ErrorContains(t, err, "load yaml config")
-}
-
 func TestLoad_InvalidYAML(t *testing.T) {
 	t.Setenv(configPathEnvVar, "")
 

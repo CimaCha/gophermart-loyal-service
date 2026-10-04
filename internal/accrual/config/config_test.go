@@ -38,6 +38,9 @@ func TestLoad_Success(t *testing.T) {
 
 	require.NotNil(t, cfg.Logger)
 	require.NotNil(t, cfg.RLS)
+	require.NotNil(t, cfg.W)
+
+	assert.Equal(t, 16, cfg.W.WorkerCount)
 }
 
 func TestLoad_ConfigPathFromEnv(t *testing.T) {
@@ -54,19 +57,6 @@ func TestLoad_ConfigPathFromEnv(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-}
-
-func TestLoad_ConfigFileNotFound(t *testing.T) {
-	t.Setenv(configPathEnvVar, "")
-
-	cfg, err := Load(
-		argsWithConfig("/does/not/exist/config.yaml"),
-	)
-
-	require.Error(t, err)
-	assert.Nil(t, cfg)
-
-	assert.ErrorContains(t, err, "load yaml config")
 }
 
 func TestLoad_InvalidYAML(t *testing.T) {

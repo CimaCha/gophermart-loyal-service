@@ -31,14 +31,13 @@ type validator interface {
 }
 
 const (
-	defaultConfigPath = "config/gophermart.yaml"
-	configPathEnvVar  = "GOPHERMART_CONFIG_PATH"
+	configPathEnvVar = "GOPHERMART_CONFIG_PATH"
 )
 
 func Load(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 
-	configPathFlag := fs.String("config", defaultConfigPath, "path to config file")
+	configPathFlag := fs.String("config", "", "path to config file")
 	serverConfig := httpserver.RegisterFlags(fs)
 	dbConfig := postgres.RegisterFlags(fs)
 	accrualConfig := accrualclient.RegisterFlags(fs)

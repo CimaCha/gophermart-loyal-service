@@ -10,6 +10,7 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type OrderService interface {
@@ -32,18 +33,30 @@ func New(
 	}
 }
 
+type GoodRequest struct {
+	Description string          `json:"description"`
+	Price       decimal.Decimal `json:"price"`
+}
+
+type CreateOrderRequest struct {
+	OrderNum string        `json:"order"`
+	Goods    []GoodRequest `json:"goods"`
+}
+
 func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	//TODO
 }
 func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
-	var req model.Order
+	var req CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	if err := h.service.UploadOrder(r.Context(), req); err != nil {
+	order := req.toModel()
+
+	if err := h.service.UploadOrder(r.Context(), order); err != nil {
 		switch {
 		case errors.Is(err, context.Canceled):
 			h.logger.Debug("create order canceled by client")
@@ -88,4 +101,17 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (r CreateOrderRequest) toModel() model.Order {
+	goods := make([]model.Good, 0, len(r.Goods))
+
+	for _, g := range r.Goods {
+		goods = append(goods, model.Good{
+			Description: g.Description,
+			Price:       g.Price,
+		})
+	}
+
+	return *model.NewOrder(r.OrderNum, goods)
 }

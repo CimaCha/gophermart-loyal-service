@@ -90,3 +90,64 @@ func TestGoodsRepository_RegisterGoods_Duplicate(t *testing.T) {
 	err := repo.RegisterGoods(ctx, goods)
 	require.ErrorIs(t, err, model.ErrMatchAlreadyExists)
 }
+
+// TestGoodsRepository_GetAllGoods_Success проверяет, что метод возвращает
+// все правила вознаграждений из таблицы rewards.
+func TestGoodsRepository_GetAllGoods_Success(t *testing.T) {
+	cleanDB(t)
+
+	repo := New(testPool)
+	ctx := context.Background()
+
+	d1 := mustDecimal("10")
+	d2 := mustDecimal("500")
+
+	require.NoError(t, repo.RegisterGoods(ctx, model.GoodsInfo{
+		Match:      "Bork",
+		Reward:     &d1,
+		RewardType: model.RewardTypePercent,
+	}))
+
+	require.NoError(t, repo.RegisterGoods(ctx, model.GoodsInfo{
+		Match:      "iPhone",
+		Reward:     &d2,
+		RewardType: model.RewardTypePoints,
+	}))
+
+	got, err := repo.GetAllGoods(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, got, 2)
+
+	expected := map[string]model.GoodsInfo{
+		"Bork": {
+			Reward:     &d1,
+			RewardType: model.RewardTypePercent,
+		},
+		"iPhone": {
+			Reward:     &d2,
+			RewardType: model.RewardTypePoints,
+		},
+	}
+
+	for _, g := range got {
+		exp := expected[g.Match]
+
+		assert.Equal(t, exp.RewardType, g.RewardType)
+		assert.True(t, exp.Reward.Equal(*g.Reward))
+	}
+}
+
+// TestGoodsRepository_GetAllGoods_Empty проверяет, что при отсутствии правил
+// метод возвращает пустой слайс без ошибки.
+func TestGoodsRepository_GetAllGoods_Empty(t *testing.T) {
+	cleanDB(t)
+
+	repo := New(testPool)
+	ctx := context.Background()
+
+	got, err := repo.GetAllGoods(ctx)
+	require.NoError(t, err)
+
+	assert.Empty(t, got)
+}

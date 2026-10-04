@@ -2,8 +2,10 @@ package model
 
 import (
 	"errors"
-	"github.com/CimaCha/gophermart-loyal-service/pkg/luhn"
 	"time"
+
+	"github.com/CimaCha/gophermart-loyal-service/pkg/luhn"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -24,16 +26,16 @@ func (ost OrderStatus) String() string {
 }
 
 type Order struct {
-	OrderNum   string      `json:"order,omitempty"`
-	Status     OrderStatus `json:"status,omitempty"`
-	Accrual    *float64    `json:"accrual,omitempty"`
-	Goods      []Good      `json:"goods,omitempty"`
-	UploadedAt time.Time   `json:"uploaded_at"`
+	OrderNum   string           `json:"order"`
+	Status     OrderStatus      `json:"status,omitempty"`
+	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
+	Goods      []Good           `json:"goods,omitempty"`
+	UploadedAt time.Time        `json:"uploaded_at"`
 }
 
 type Good struct {
-	Description string  `json:"description,omitempty"`
-	Price       float64 `json:"price,omitempty"`
+	Description string          `json:"description"`
+	Price       decimal.Decimal `json:"price"`
 }
 
 func NewOrder(orderNum string, goods []Good) *Order {

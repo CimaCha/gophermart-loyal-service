@@ -18,7 +18,6 @@ type OrderNotifier interface {
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *model.Order) error
 	GetOrder(ctx context.Context, orderID string) (model.Order, error)
-	UpdateOrder(ctx context.Context, order *model.Order) error
 }
 
 type OrderService struct {
@@ -36,10 +35,12 @@ var (
 func New(
 	repo OrderRepository,
 	log *slog.Logger,
+	notifier OrderNotifier,
 ) *OrderService {
 	return &OrderService{
-		repo:   repo,
-		logger: log,
+		repo:     repo,
+		logger:   log,
+		notifier: notifier,
 	}
 }
 
