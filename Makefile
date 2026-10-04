@@ -48,11 +48,11 @@ gophermart-test:
 	-gophermart-binary-path=$(GOPHERMART_DIR)/$(GOPHERMART_BIN) \
 	-gophermart-host=localhost \
 	-gophermart-port=8080 \
-	-gophermart-database-uri=postgres://postgres:vladon4ik7576@localhost:5433/gophermart \
+	-gophermart-database-uri=postgres://postgres:password@localhost:5433/gophermart \
 	-accrual-binary-path=$(ACCRUAL_DIR)/$(ACCRUAL_BIN) \
 	-accrual-host=localhost \
 	-accrual-port=8081 \
-	-accrual-database-uri=postgres://postgres:vladon4ik7576@localhost:5433/accrual
+	-accrual-database-uri=postgres://postgres:password@localhost:5433/accrual
 
 # ------------------------------------------------------------------------------
 # Gophermart migrations
