@@ -22,3 +22,7 @@ rate_limits:
       window: 1m
       max_requests: 1024
 
+worker:
+  polling_interval: 15s
+  worker_count: 16
+  jobs_queue_size: 1024

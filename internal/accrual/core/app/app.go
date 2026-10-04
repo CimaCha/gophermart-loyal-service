@@ -8,10 +8,12 @@ import (
 	goodsh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler"
 	goodsrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/repository"
 	goodssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goodscache"
 	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/handler"
 	ordersrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/repository"
 	orderssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpmiddleware"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
@@ -30,6 +32,8 @@ import (
 type App struct {
 	Server  *httpserver.HTTPServer
 	Pgxpool *pgxpool.Pool
+
+	Worker *worker.Worker
 }
 
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
@@ -52,8 +56,17 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	orderRepo := ordersrepo.New(pool)
 	goodsRepo := goodsrepo.New(pool)
 
+	// Загружаем все правила вознаграждений из базы данных и сохраняем их в кэш
+	goodsCache := goodscache.New(goodsRepo)
+	if err := goodsCache.Load(ctx); err != nil {
+		log.Error("failed to load goods cache", "err", err)
+		return nil, fmt.Errorf("load goods cache: %w", err)
+	}
+	// Создаём воркер для обработки заказов
+	orderWorker := worker.New(orderRepo, goodsCache, log, cfg.W)
+
 	orderSvc := orderssvc.New(orderRepo, log)
-	goodsSvc := goodssvc.New(goodsRepo)
+	goodsSvc := goodssvc.New(goodsRepo, goodsCache)
 
 	orderHandler := ordersh.New(log, orderSvc)
 	goodsHandler := goodsh.New(log, goodsSvc)
@@ -79,11 +92,14 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	return &App{
 		Server:  httpServer,
 		Pgxpool: pool,
+		Worker:  orderWorker,
 	}, nil
 
 }
 
 func (a *App) Run(ctx context.Context) error {
+
+	go a.Worker.Run(ctx)
 
 	if err := a.Server.Run(ctx); err != nil {
 		return fmt.Errorf("server run: %w", err)

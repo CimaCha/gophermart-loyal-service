@@ -30,6 +30,12 @@ rate_limits:
     getorders:
       window: 1m
       max_requests: 1024
+
+worker:
+  polling_interval: 15s
+  worker_count: 16
+  jobs_queue_size: 1024
+  target_rps: 256	  
 `
 
 // writeYAML создаёт временный файл с содержимым и возвращает путь к нему
