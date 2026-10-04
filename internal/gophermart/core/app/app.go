@@ -1,3 +1,6 @@
+// Package app представляет собой центральный DI-контейнер и точку сборки микросервиса gophermart.
+// Отвечает за инициализацию пула соединений PostgreSQL, криптографических компонентов (Argon2, JWT),
+// клиента интеграции с системой начислений, маршрутизатора, middleware и фоновых воркеров.
 package app
 
 import (
@@ -35,10 +38,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// App инкапсулирует в себе все ключевые компоненты запущенного приложения gophermart,
+// предоставляя унифицированный интерфейс для управления его жизненным циклом.
 type App struct {
-	Server  *httpserver.HTTPServer
+	// Server управляет запуском и graceful shutdown HTTP-сервера.
+	Server *httpserver.HTTPServer
+	// Pgxpool представляет пул соединений с базой данных PostgreSQL.
 	Pgxpool *pgxpool.Pool
-
+	// Worker отвечает за асинхронный опрос и обновление статусов заказов во внешней системе accrual.
 	Worker *worker.Worker
 }
 
@@ -46,6 +53,8 @@ const (
 	defaultJWTKey = "super-secret-key"
 )
 
+// New создает, связывает зависимости (Dependency Injection) и возвращает готовый к запуску экземпляр App.
+// Метод автоматически применяет миграции базы данных gophermart при старте.
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	// Отключаем кавычки при JSON-сериализации decimal.Decimal,
@@ -125,6 +134,8 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 }
 
+// Run асинхронно запускает фонового воркера для обновления статусов заказов
+// и блокирует текущую горутину на время работы HTTP-сервера до получения сигнала отмены ctx.
 func (a *App) Run(ctx context.Context) error {
 
 	go a.Worker.Run(ctx)

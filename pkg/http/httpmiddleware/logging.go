@@ -8,6 +8,8 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpio"
 )
 
+// Logging возвращает Middleware, которое логирует детали входящего HTTP-запроса и исходящего ответа.
+// Логирует URI, метод, User-Agent, Request ID, а также итоговый статус-код, время обработки (latency) и размер тела ответа.
 func Logging(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

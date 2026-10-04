@@ -7,6 +7,9 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpio"
 )
 
+// GzipCompress возвращает Middleware, которое автоматически распаковывает входящие запросы
+// (если установлен заголовок Content-Encoding: gzip) и сжимает исходящие ответы
+// (если клиент передал заголовок Accept-Encoding: gzip и тип контента совпадает с JSON/HTML).
 func GzipCompress() Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

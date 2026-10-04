@@ -1,3 +1,5 @@
+// Package config отвечает за сборку, парсинг и валидацию глобальной конфигурации
+// основного сервиса gophermart из флагов командной строки, переменных окружения и YAML-файла.
 package config
 
 import (
@@ -13,13 +15,21 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 
+// Config объединяет в себе конфигурационные параметры всех подсистем gophermart:
+// HTTP-сервера, клиента системы начислений, базы данных, логгера, лимитера запросов и воркеров.
 type Config struct {
-	Server  *httpserver.Config
+	// Server содержит параметры запуска HTTP-сервера gophermart.
+	Server *httpserver.Config
+	// Accrual хранит настройки подключения к внешнему микросервису расчета баллов.
 	Accrual *accrualclient.Config
-	DB      *postgres.Config
-	Logger  *slogger.Config
-	RLS     *ratelimitstore.Config
-	W       *worker.Config
+	// DB содержит строку подключения и параметры пула для PostgreSQL.
+	DB *postgres.Config
+	// Logger управляет конфигурацией вывода структурированных логов.
+	Logger *slogger.Config
+	// RLS содержит настройки InMemory-хранилища лимитов частоты запросов.
+	RLS *ratelimitstore.Config
+	// W определяет параметры производительности и таймингов фоновых воркеров.
+	W *worker.Config
 }
 
 type envParser interface {
@@ -34,6 +44,12 @@ const (
 	configPathEnvVar = "GOPHERMART_CONFIG_PATH"
 )
 
+// Load выполняет пошаговую инициализацию, слияние и валидацию полной конфигурации сервиса.
+// Приоритет применения источников (от высшего к низшему):
+// 1. Переменные окружения (Environment Variables)
+// 2. Флаги командной строки (CLI Flags)
+// 3. Значения из файла конфигурации YAML (если путь передан)
+// 4. Дефолтные значения внутренних структур.
 func Load(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 

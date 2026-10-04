@@ -1,3 +1,5 @@
+// Package worker предоставляет асинхронный воркер-пул для синхронизации состояний заказов
+// с внешней системой расчетов (accrual) и транзакционного начисления баллов на баланс пользователей.
 package worker
 
 import (
@@ -15,6 +17,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// OrderStore определяет интерфейс взаимодействия с базой данных для управления жизненным циклом заказов.
 type OrderStore interface {
 	// GetPendingOrders - возвращает заказы со статусами NEW или PROCESSING
 	GetPendingOrders(ctx context.Context) ([]ordermodel.Order, error)
@@ -24,21 +27,26 @@ type OrderStore interface {
 	UpdateStatus(ctx context.Context, orderNum string, status ordermodel.OrderStatus) error
 }
 
+// BalanceAccruer - интерфейс для взаимодействия с балансом пользователя
 type BalanceAccruer interface {
 	// Accrue - обновляет баланс пользователя используяю транзакцию
 	AccrueTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, sum decimal.Decimal) error
 }
 
+// AccrualClient - интерфейс для взаимодействия с внешним сервисом через клиент
 type AccrualClient interface {
 	// GetOrder - возвращает результат с содержанием текущего состояния заказа из accrual
 	GetOrder(ctx context.Context, orderNum string) (*accrualclient.ResultResponse, error)
 }
 
+// Transactor предоставляет абстракцию для управления границами транзакций базы данных через функцию обратного вызова.
 type Transactor interface {
+	// BeginFunc выполняет переданную функцию fn внутри изолированной ACID-транзакции СУБД.
 	BeginFunc(ctx context.Context, fn func(pgx.Tx) error) error
 }
 
-// Bounded worker
+// Worker координирует конкурентный конвейер обработки заказов (Worker Pool) и механизм поллинга БД.
+// Включает внутренний механизм защиты (gate) для динамической приостановки запросов при получении ошибок HTTP 429.
 type Worker struct {
 	orders   OrderStore
 	balances BalanceAccruer
@@ -54,6 +62,7 @@ type Worker struct {
 	gate *gate // закрываем запросы к accrual если схватили 429 (too many requests)
 }
 
+// New создает, конфигурирует и возвращает полностью инициализированный экземпляр Worker для сервиса gophermart.
 func New(
 	orders OrderStore,
 	balances BalanceAccruer,
@@ -89,7 +98,9 @@ func (w *Worker) enqueue(order ordermodel.Order) bool {
 	}
 }
 
-// Notify отправляет сообщение воркеру, принимая order в качестве параметра
+// Notify отправляет заказ на обработку в очередь воркеров.
+// Если заказ уже обрабатывается в другом потоке или буфер переполнен, операция безопасно
+// логируется и пропускается, так как заказ гарантированно подхватит поллинг-воркер базы данных.
 func (w *Worker) Notify(order ordermodel.Order) {
 	if !w.enqueue(order) {
 		w.logger.Debug(

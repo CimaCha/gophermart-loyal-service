@@ -1,3 +1,5 @@
+// Package handler предоставляет HTTP-обработчики для управления товарами
+// и правилами начисления баллов лояльности.
 package handler
 
 import (
@@ -10,15 +12,21 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 )
 
+// GoodsService определяет интерфейс бизнес-логики для работы с товарами,
+// который должен быть реализован сервисным слоем.
 type GoodsService interface {
+	// RegisterGoods выполняет бизнес-валидацию и регистрацию нового товара или правила.
 	RegisterGoods(ctx context.Context, goods model.GoodsInfo) error
 }
 
+// Handler инкапсулирует в себе логгер и сервисную логику для обработки
+// входящих HTTP-запросов, связанных с товарами.
 type Handler struct {
 	logger  *slog.Logger
 	service GoodsService
 }
 
+// New создает и инициализирует новый экземпляр Handler с необходимыми зависимостями.
 func New(logger *slog.Logger, goodsService GoodsService) *Handler {
 	return &Handler{
 		logger:  logger,
@@ -26,6 +34,12 @@ func New(logger *slog.Logger, goodsService GoodsService) *Handler {
 	}
 }
 
+// RegisterGoods обрабатывает HTTP-запрос на регистрацию нового товара или правила начисления.
+// Декодирует JSON из тела запроса и транслирует ошибки бизнес-логики в соответствующие HTTP-статусы:
+//   - 200 OK — успешная регистрация.
+//   - 400 Bad Request — невалидный JSON или некорректные данные товара.
+//   - 409 Conflict — правило для данного товара уже существует.
+//   - 500 Internal Server Error — непредвиденная ошибка на стороне сервера.
 func (h *Handler) RegisterGoods(w http.ResponseWriter, r *http.Request) {
 
 	var req model.GoodsInfo

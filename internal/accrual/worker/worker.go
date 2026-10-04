@@ -1,3 +1,5 @@
+// Package worker предоставляет асинхронный конвейер (pipeline) для фоновой обработки
+// и калькуляции баллов лояльности по зарегистрированным заказам.
 package worker
 
 import (
@@ -13,12 +15,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// OrderStore определяет интерфейс взаимодействия с базой данных для управления жизненным циклом заказов.
+// Все методы изменения состояния должны гарантировать атомарность операций (CAS - Compare-And-Swap).
 type OrderStore interface {
-	// UpdateStatus — атомарно переводит заказ в новый статус, только если
-	// текущий статус ещё не терминальный. updated=false — кто-то опередил нас.
+	// UpdateStatus атомарно переводит заказ в новый статус (например, PROCESSING),
+	// только если текущий статус еще не является терминальным.
+	// Возвращает updated=false, если состояние изменилось параллельным процессом.
 	UpdateStatus(ctx context.Context, orderNum string, status ordermodel.OrderStatus) (updated bool, err error)
-	// FinalizeOrder — атомарно проставляет финальный статус и accrual.
+	// FinalizeOrder атомарно фиксирует финальный статус (PROCESSED/INVALID) и итоговую сумму начислений accrual.
 	FinalizeOrder(ctx context.Context, orderNum string, status ordermodel.OrderStatus, accrual decimal.Decimal) (updated bool, err error)
+	// GetPendingOrders возвращает список заказов, ожидающих вычисления баллов.
 	GetPendingOrders(ctx context.Context) ([]ordermodel.Order, error)
 }
 
@@ -28,6 +34,8 @@ type GoodsCacheGetter interface {
 	Get() []goodsmodel.GoodsInfo
 }
 
+// Worker инкапсулирует конкурентную очередь задач (Worker Pool) и механизм периодического опроса БД (Polling),
+// обеспечивая надежную обработку и начисление баллов без дублирования операций над заказами.
 type Worker struct {
 	orders OrderStore
 	logger *slog.Logger
@@ -40,6 +48,7 @@ type Worker struct {
 	goodsCache GoodsCacheGetter
 }
 
+// New создает, настраивает и возвращает экземпляр Worker с заданным пулом воркеров и размером очереди задач.
 func New(
 	orders OrderStore,
 	goodsCache GoodsCacheGetter,

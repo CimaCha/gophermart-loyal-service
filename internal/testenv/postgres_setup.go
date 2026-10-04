@@ -1,3 +1,5 @@
+// Package testenv предоставляет инструменты для развертывания изолированного
+// тестового окружения базы данных PostgreSQL в Docker-контейнерах на время выполнения интеграционных тестов.
 package testenv
 
 import (
@@ -14,12 +16,18 @@ import (
 	pg "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
+// Environment инкапсулирует пул соединений pgx, стандартный SQL-драйвер
+// и ссылку на запущенный Docker-контейнер с базой данных PostgreSQL для интеграционных тестов.
 type Environment struct {
+	// Pool представляет собой пул соединений высокого уровня pgxpool.Pool для использования в тестируемых сервисах.
 	Pool        *pgxpool.Pool
 	db          *sql.DB
 	pgContainer *pg.PostgresContainer
 }
 
+// Setup инициализирует и поднимает чистый Docker-контейнер с PostgreSQL, регистрирует
+// поддержку расширений типов данных decimal для pgx и накатывает SQL-миграции из переданной FS.
+// В случае критических сбоев конфигурации или недоступности Docker-демона завершает выполнение через log.Fatalf.
 func Setup(ctx context.Context, migrationsFS embed.FS) *Environment {
 
 	pgContainer, err := pg.Run(
@@ -80,6 +88,8 @@ func Setup(ctx context.Context, migrationsFS embed.FS) *Environment {
 	}
 }
 
+// Close корректно и последовательно освобождает ресурсы тестового окружения:
+// закрывает пулы соединений и принудительно останавливает/уничтожает Docker-контейнер с базой данных.
 func (env *Environment) Close(ctx context.Context) {
 	if env.Pool != nil {
 		env.Pool.Close()

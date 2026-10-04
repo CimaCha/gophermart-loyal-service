@@ -1,3 +1,5 @@
+// Package repository предоставляет функционал для взаимодействия со слоем персистентного хранения данных
+// для управления балансами пользователей и историей списания баллов в СУБД PostgreSQL.
 package repository
 
 import (
@@ -13,18 +15,19 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// BalanceRepository работает с балансом пользователя в PostgreSQL.
+// BalanceRepository реализует методы доступа к PostgreSQL для ведения счетов пользователей.
 type BalanceRepository struct {
 	pool *pgxpool.Pool
 }
 
-// New создаёт репозиторий баланса.
+// New создает и инициализирует новый экземпляр BalanceRepository с использованием переданного пула соединений.
 func New(pool *pgxpool.Pool) *BalanceRepository {
 	return &BalanceRepository{pool: pool}
 }
 
-// GetBalance возвращает текущий баланс и сумму выводов пользователя.
-// Если записи о балансе нет, возвращает нулевой Balance.
+// GetBalance возвращает текущую информацию о доступном балансе и сумме выводов пользователя.
+// Если запись о счете пользователя отсутствует (pgx.ErrNoRows), метод не возвращает ошибку,
+// а инициализирует и отдает пустую доменную структуру model.Balance с нулевыми балансами.
 func (r *BalanceRepository) GetBalance(ctx context.Context, userID uuid.UUID) (model.Balance, error) {
 	const query = `
     SELECT user_uuid, current, withdrawn
@@ -43,6 +46,8 @@ func (r *BalanceRepository) GetBalance(ctx context.Context, userID uuid.UUID) (m
 	return b, nil
 }
 
+// AccrueTx выполняет операцию зачисления баллов на счет пользователя в рамках внешней открытой транзакции pgx.Tx.
+// Возвращает ошибку, если запись кошелька пользователя не найдена (RowsAffected == 0).
 func (r *BalanceRepository) AccrueTx(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -64,7 +69,11 @@ func (r *BalanceRepository) AccrueTx(
 	return nil
 }
 
-// Withdraw выполняет списание средствт.
+// Withdraw атомарно в рамках транзакции выполняет списание средств со счета пользователя:
+// 1. Блокирует строку баланса для обновления (`FOR UPDATE`) и проверяет наличие достаточного количества средств.
+// 2. Уменьшает доступный баланс и увеличивает счетчик списаний.
+// 3. Фиксирует операцию в таблице истории транзакций transactions.
+// Если номер заказа уже фигурировал в истории (уникальный индекс, ошибка 23505), возвращает ошибку model.ErrOrderAlreadyUsed.
 func (r *BalanceRepository) Withdraw(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -121,8 +130,8 @@ func (r *BalanceRepository) Withdraw(
 
 }
 
-// GetWithdrawals возвращает всю информацию о выводе средств.
-// Если записи о балансе нет, возвращает 204 (no content).
+// GetWithdrawals возвращает хронологический список всех успешных операций списания баллов
+// конкретного пользователя, отсортированных по дате проведения от старых к новым.
 func (r *BalanceRepository) GetWithdrawals(ctx context.Context, userID uuid.UUID) ([]model.Withdrawal, error) {
 	const query = `
     SELECT order_num, sum, processed_at

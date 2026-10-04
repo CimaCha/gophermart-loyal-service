@@ -1,3 +1,5 @@
+// Package authentication предоставляет сервисы для генерации, парсинга
+// и валидации токенов аутентификации (JWT) пользователей.
 package authentication
 
 import (
@@ -8,29 +10,38 @@ import (
 	"github.com/google/uuid"
 )
 
+// TokenService инкапсулирует секретный ключ подписи и предоставляет
+// методы для работы с токенами аутентификации.
 type TokenService struct {
 	secretKey []byte
 }
 
 var (
-	ErrExpiredToken  = errors.New("token is expired")
-	ErrInvalidToken  = errors.New("token is invalid")
+	// ErrExpiredToken возвращается, если срок действия токена истек.
+	ErrExpiredToken = errors.New("token is expired")
+	// ErrInvalidToken возвращается, если токен поврежден, имеет неверную подпись или структуру.
+	ErrInvalidToken = errors.New("token is invalid")
+	// ErrMissingUserID возвращается, если в декодированных утверждениях (claims) токена отсутствует UUID пользователя.
 	ErrMissingUserID = errors.New("user id is missing from token claims")
 )
 
+// New создает и инициализирует новый экземпляр TokenService с переданным секретным ключом.
 func New(secretKey []byte) *TokenService {
 	return &TokenService{
 		secretKey: secretKey,
 	}
 }
 
-// Claims includes registered JWT claims and the authenticated user ID.
+// Claims объединяет зарегистрированные стандартные утверждения JWT (RegisteredClaims)
+// и кастомное поле идентификатора аутентифицированного пользователя (UserID).
 type Claims struct {
 	jwt.RegisteredClaims
+	// UserID содержит уникальный UUID пользователя, которому принадлежит токен.
 	UserID uuid.UUID `json:"user_id"`
 }
 
-// BuildJWTString создаёт токен и возвращает его в виде строки.
+// BuildJWTString генерирует новый криптографический JWT-токен на основе алгоритма подписи HS256
+// для указанного userID со сроком действия 365 дней и возвращает его в виде строки.
 func (b TokenService) BuildJWTString(userID uuid.UUID) (string, error) {
 	// создаём новый токен с алгоритмом подписи HS256 и утверждениями — Claims
 
@@ -50,7 +61,8 @@ func (b TokenService) BuildJWTString(userID uuid.UUID) (string, error) {
 	return token.SignedString(b.secretKey)
 }
 
-// ValidateToken проверяет токен и возвращает идентификатор пользователя, если токен действителен.
+// ValidateToken выполняет парсинг строки токена, проверяет валидность криптографической подписи HS256
+// и срок его действия. В случае успеха извлекает и возвращает UUID пользователя (UserID).
 func (b TokenService) ValidateToken(tokenString string) (uuid.UUID, error) {
 	claims := &Claims{}
 

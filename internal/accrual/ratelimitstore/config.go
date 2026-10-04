@@ -9,16 +9,23 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// RateLimitConfig определяет параметры ограничения частоты запросов для конкретного маршрута.
 type RateLimitConfig struct {
-	Window      time.Duration `yaml:"window"`
-	MaxRequests int           `yaml:"max_requests"`
+	// Window задает продолжительность временного окна (например, 1m, 1h).
+	Window time.Duration `yaml:"window"`
+	// MaxRequests определяет максимальное количество разрешенных запросов внутри одного окна.
+	MaxRequests int `yaml:"max_requests"`
 }
 
+// Config описывает структуру конфигурации всей подсистемы Rate Limiting.
 type Config struct {
-	CleanupInterval time.Duration              `yaml:"cleanup_interval"`
-	Routes          map[string]RateLimitConfig `yaml:"routes"`
+	// CleanupInterval определяет периодичность очистки InMemory-хранилища от устаревших записей.
+	CleanupInterval time.Duration `yaml:"cleanup_interval"`
+	// Routes содержит карту соответствия путей (маршрутов) и их индивидуальных правил ограничения частоты запросов.
+	Routes map[string]RateLimitConfig `yaml:"routes"`
 }
 
+// LoadFromYAML загружает, считывает и парсит конфигурацию Rate Limiting из указанного файла в формате YAML.
 func LoadFromYAML(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -34,6 +41,8 @@ func LoadFromYAML(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// Validate проверяет корректность параметров отдельного правила ограничения запросов.
+// Возвращает ошибку, если размер окна Window меньше или равен нулю, либо MaxRequests меньше 1.
 func (c *RateLimitConfig) Validate() error {
 	if c == nil {
 		return errors.New("ratelimit config: section is required")
@@ -47,6 +56,8 @@ func (c *RateLimitConfig) Validate() error {
 	return nil
 }
 
+// Validate осуществляет сквозную проверку всей конфигурации Rate Limiting.
+// Возвращает ошибку, если интервал очистки невалиден или одно из зарегистрированных правил маршрутов содержит некорректные данные.
 func (c *Config) Validate() error {
 	if c == nil {
 		return errors.New("ratelimit config: section is required")

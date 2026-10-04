@@ -1,3 +1,5 @@
+// Package repository предоставляет функционал для взаимодействия со слоем персистентного хранения данных
+// для сущностей заказов и привязанных к ним товарных позиций в СУБД PostgreSQL.
 package repository
 
 import (
@@ -13,19 +15,26 @@ import (
 )
 
 var (
+	// ErrOrderAlreadyProcessing возвращается, если при попытке регистрации заказа обнаруживается,
+	// что заказ с таким номером уже существует в базе данных.
 	ErrOrderAlreadyProcessing = errors.New("order has already been uploaded")
 )
 
+// OrderRepository реализует методы доступа к данным в PostgreSQL для управления заказами и товарами.
 type OrderRepository struct {
 	pool *pgxpool.Pool
 }
 
+// New создает и инициализирует новый экземпляр OrderRepository с использованием переданного пула соединений.
 func New(pool *pgxpool.Pool) *OrderRepository {
 	return &OrderRepository{
 		pool: pool,
 	}
 }
 
+// GetPendingOrders извлекает список всех заказов со статусами REGISTERED или PROCESSING,
+// группируя связанные с ними товарные позиции из таблицы goods в единые доменные структуры.
+// Возвращает срез незавершенных заказов, отсортированных по их номерам.
 func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, error) {
 	query := `
 		SELECT
@@ -75,6 +84,10 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, 
 	return result, nil
 }
 
+// FinalizeOrder переводит заказ в один из финальных статусов (PROCESSED или INVALID)
+// и фиксирует итоговую сумму начисленных баллов. Обновление произойдет только в том случае,
+// если текущий статус заказа в базе данных еще не является финальным.
+// Возвращает true, если строка была успешно обновлена.
 func (r *OrderRepository) FinalizeOrder(ctx context.Context, orderNum string, status model.OrderStatus, accrual decimal.Decimal) (updated bool, err error) {
 
 	query := `
@@ -101,6 +114,9 @@ func (r *OrderRepository) FinalizeOrder(ctx context.Context, orderNum string, st
 	return tag.RowsAffected() == 1, nil
 }
 
+// UpdateStatus выполняет промежуточное обновление статуса заказа (например, переводит из REGISTERED в PROCESSING).
+// Изменение блокируется, если заказ уже находится в терминальном состоянии (PROCESSED, INVALID).
+// Возвращает true, если статус был изменен.
 func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, status model.OrderStatus) (updated bool, err error) {
 
 	query := `
@@ -128,6 +144,10 @@ func (r *OrderRepository) GetOrder(ctx context.Context, orderID string) (model.O
 	return model.Order{}, nil
 }
 
+// CreateOrder атомарно (в рамках транзакции) сохраняет новый заказ в таблицу orders,
+// а входящие в него товарные позиции — в таблицу goods с помощью высокопроизводительного метода CopyFrom.
+// Использует хак с ON CONFLICT DO UPDATE и флагом xmax для определения скрытых коллизий при конкурентной вставке.
+// Если заказ уже существовал, транзакция откатывается и возвращается ошибка ErrOrderAlreadyProcessing.
 func (r *OrderRepository) CreateOrder(ctx context.Context, order *model.Order) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {

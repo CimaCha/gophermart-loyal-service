@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert/yaml"
 )
 
+// Config описывает параметры конфигурации для управления жизненным циклом и производительностью фоновых воркеров.
 type Config struct {
 	// PollingInterval - как часто воркер будет ходить в БД и проверять необходимые ему записи
 	PollingInterval time.Duration `yaml:"polling_interval"`
@@ -18,6 +19,7 @@ type Config struct {
 	JobsQueueSize int `yaml:"jobs_queue_size"`
 }
 
+// LoadFromYAML загружает, считывает и десериализует параметры конфигурации воркеров из YAML-файла по указанному пути.
 func LoadFromYAML(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -33,6 +35,8 @@ func LoadFromYAML(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// Validate проверяет корректность установленных параметров конфигурации воркеров.
+// Возвращает ошибку, если интервал поллинга меньше или равен нулю, либо количество воркеров и размер очереди меньше 1.
 func (c *Config) Validate() error {
 
 	if c == nil {
