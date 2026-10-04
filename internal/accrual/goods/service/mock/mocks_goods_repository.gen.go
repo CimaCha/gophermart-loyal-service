@@ -17,19 +17,10 @@ func NewMockGoodsRepository(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockGoodsRepository {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &MockGoodsRepository{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
