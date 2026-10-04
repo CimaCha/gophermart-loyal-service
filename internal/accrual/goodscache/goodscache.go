@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 	goodsmodel "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
 )
 
@@ -16,7 +15,7 @@ type GoodsCache struct {
 }
 
 type GoodsRrovider interface {
-	GetAllGoods(ctx context.Context) ([]model.GoodsInfo, error)
+	GetAllGoods(ctx context.Context) ([]goodsmodel.GoodsInfo, error)
 }
 
 func New(goodsRepo GoodsRrovider) *GoodsCache {

@@ -32,31 +32,37 @@ func TestHandler_CreateOrder_Success(t *testing.T) {
 		]
 	}`
 
-	expected := model.NewOrder("12345678903", []model.Good{
-		{
-			Description: "iPhone",
-			Price:       decimal.RequireFromString("1000"),
-		},
-	})
-
-	svc.
-		On("UploadOrder", mock.Anything, *expected).
+	svc.EXPECT().
+		UploadOrder(
+			mock.Anything,
+			mock.MatchedBy(func(order model.Order) bool {
+				return order.OrderNum == "12345678903" &&
+					order.Status == model.OrderStatusRegistered &&
+					len(order.Goods) == 1 &&
+					order.Goods[0].Description == "iPhone" &&
+					order.Goods[0].Price.Equal(decimal.RequireFromString("1000"))
+			}),
+		).
 		Return(nil).
 		Once()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(body))
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/orders",
+		strings.NewReader(body),
+	)
+
 	rec := httptest.NewRecorder()
 
 	h.CreateOrder(rec, req)
 
-	assert.Equal(t, http.StatusAccepted, rec.Code)
-	svc.AssertExpectations(t)
+	require.Equal(t, http.StatusAccepted, rec.Code)
 }
 
 func TestHandler_CreateOrder_InvalidJSON(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	svc := new(MockOrderService)
+	svc := NewMockOrderService(t)
 	h := New(logger, svc)
 
 	req := httptest.NewRequest(
@@ -69,33 +75,39 @@ func TestHandler_CreateOrder_InvalidJSON(t *testing.T) {
 
 	h.CreateOrder(rec, req)
 
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-
-	svc.AssertNotCalled(t, "UploadOrder")
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestHandler_CreateOrder_InvalidOrderNumber(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	svc := new(MockOrderService)
+	svc := NewMockOrderService(t)
 	h := New(logger, svc)
+
+	svc.EXPECT().
+		UploadOrder(
+			mock.Anything,
+			mock.AnythingOfType("model.Order"),
+		).
+		Return(ordersvc.ErrInvalidOrderNum).
+		Once()
 
 	body := `{
 		"order":"12345678903",
 		"goods":[]
 	}`
 
-	svc.
-		On("UploadOrder", mock.Anything, mock.AnythingOfType("model.Order")).
-		Return(ordersvc.ErrInvalidOrderNum).
-		Once()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/orders",
+		strings.NewReader(body),
+	)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 
 	h.CreateOrder(rec, req)
 
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestCreateOrderRequest_toModel(t *testing.T) {
@@ -113,9 +125,9 @@ func TestCreateOrderRequest_toModel(t *testing.T) {
 
 	got := req.toModel()
 
-	assert.Equal(t, "123", got.OrderNum)
-	assert.Equal(t, model.OrderStatusRegistered, got.Status)
-	assert.Nil(t, got.Accrual)
+	require.Equal(t, "123", got.OrderNum)
+	require.Equal(t, model.OrderStatusRegistered, got.Status)
+	require.Nil(t, got.Accrual)
 
 	require.Len(t, got.Goods, 1)
 
