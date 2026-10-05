@@ -11,7 +11,7 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/service"
-	"github.com/google/uuid"
+	"github.com/go-chi/chi/v5"
 	"github.com/shopspring/decimal"
 )
 
@@ -21,7 +21,7 @@ type OrderService interface {
 	// UploadOrder регистрирует новый заказ в системе для последующего расчета баллов.
 	UploadOrder(ctx context.Context, order model.Order) error
 	// GetOrder возвращает детальную информацию о заказе по его уникальному UUID-идентификатору.
-	GetOrder(ctx context.Context, uid uuid.UUID) (model.Order, error)
+	GetOrder(ctx context.Context, orderNum string) (model.Order, error)
 }
 
 // Handler инкапсулирует в себе структурированный логгер и сервисную логику
@@ -60,8 +60,76 @@ type CreateOrderRequest struct {
 	Goods []GoodRequest `json:"goods"`
 }
 
-func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
-	//TODO
+// GetOrderResponse описывает структуру JSON-ответа, возвращаемого
+// при успешном запросе информации о конкретном заказе.
+type GetOrderResponse struct {
+	// Номер заказа
+	Order string `json:"order"`
+	// Текущий статус обработки заказа из accrual
+	Status string `json:"status"`
+	// Если расчёт был окончен - Accrual будет содержать количество баллов
+	// Которые необходимы к начислению
+	// В ином случае Accrual будет nil
+	Accrual *decimal.Decimal `json:"accrual,omitempty"`
+}
+
+const (
+	orderNumParamKey = "number"
+)
+
+// GetOrder обрабатывает входящий HTTP-запрос на получение данных о заказе.
+// Метод извлекает номер заказа из URL, запрашивает информацию у бизнес-логики и возвращает:
+//   - 200 OK с деталями заказа в формате JSON, если заказ успешно найден;
+//   - 204 No Content, если заказ с таким номером отсутствует в системе;
+//   - 499 Status Request Client Closed, если клиент разорвал соединение до завершения обработки;
+//   - 500 Internal Server Error при возникновении непредвиденных системных ошибок.
+func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
+	orderNum := chi.URLParam(r, orderNumParamKey)
+
+	result, err := h.service.GetOrder(r.Context(), orderNum)
+	if err != nil {
+		switch {
+		case errors.Is(err, context.Canceled):
+			h.logger.Debug("get order canceled by client")
+			w.WriteHeader(499)
+			return
+		case errors.Is(err, ordersvc.ErrOrderNotFound):
+			h.logger.Info(
+				"order not found",
+				"order", orderNum,
+				"err", err,
+			)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		default:
+			h.logger.Error(
+				"unexpected error during get order",
+				"err", err,
+			)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+	}
+
+	resp := GetOrderResponse{
+		Order:   result.OrderNum,
+		Status:  result.Status.String(),
+		Accrual: result.Accrual,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error(
+			"failed encode json",
+			"err", err,
+		)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
 }
 
 // CreateOrder обрабатывает HTTP-запрос на регистрацию нового заказа для расчета баллов лояльности.

@@ -10,7 +10,6 @@ import (
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/repository"
-	"github.com/google/uuid"
 )
 
 // OrderNotifier определяет интерфейс для асинхронного оповещения фоновых систем (воркеров)
@@ -25,7 +24,7 @@ type OrderRepository interface {
 	// CreateOrder выполняет атомарное сохранение структуры заказа и его товарных позиций.
 	CreateOrder(ctx context.Context, order *model.Order) error
 	// GetOrder осуществляет поиск и извлечение информации о заказе по его строковому номеру.
-	GetOrder(ctx context.Context, orderID string) (model.Order, error)
+	GetOrder(ctx context.Context, orderNum string) (model.Order, error)
 }
 
 // OrderService инкапсулирует репозиторий, логгер и систему нотификации
@@ -42,7 +41,7 @@ var (
 	// ErrOrderAlreadyProcessing возвращается, если заказ с данным номером уже был ранее загружен в систему.
 	ErrOrderAlreadyProcessing = errors.New("order has already been uploaded by user")
 	// ErrOrdersNotFound возвращается, если искомые заказы отсутствуют в базе данных.
-	ErrOrdersNotFound = errors.New("orders not found")
+	ErrOrderNotFound = errors.New("order not found")
 )
 
 // New создает и инициализирует новый экземпляр OrderService с необходимыми внешними зависимостями.
@@ -58,9 +57,21 @@ func New(
 	}
 }
 
-func (s *OrderService) GetOrder(ctx context.Context, uid uuid.UUID) (model.Order, error) {
-	//TODO
-	return model.Order{}, nil
+// GetOrder запрашивает информацию о конкретном заказе по его уникальному номеру.
+// Метод извлекает данные из репозитория и выполняет маппинг ошибок:
+//   - Если заказ не найден в базе данных, возвращается доменная ошибка ErrOrderNotFound;
+//   - При возникновении технических неполадок с репозиторием ошибка оборачивается контекстом.
+func (s *OrderService) GetOrder(ctx context.Context, orderNum string) (model.Order, error) {
+
+	order, err := s.repo.GetOrder(ctx, orderNum)
+	if err != nil {
+		if errors.Is(err, orderrepo.ErrOrderNotFound) {
+			return model.Order{}, ErrOrderNotFound
+		}
+		return model.Order{}, fmt.Errorf("repo get order: %w", err)
+	}
+
+	return order, nil
 }
 
 // UploadOrder выполняет полный бизнес-сценарий регистрации нового заказа:

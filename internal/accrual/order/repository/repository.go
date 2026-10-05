@@ -18,6 +18,7 @@ var (
 	// ErrOrderAlreadyProcessing возвращается, если при попытке регистрации заказа обнаруживается,
 	// что заказ с таким номером уже существует в базе данных.
 	ErrOrderAlreadyProcessing = errors.New("order has already been uploaded")
+	ErrOrderNotFound          = errors.New("order not found")
 )
 
 // OrderRepository реализует методы доступа к данным в PostgreSQL для управления заказами и товарами.
@@ -139,9 +140,32 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, sta
 	return tag.RowsAffected() == 1, nil
 }
 
-func (r *OrderRepository) GetOrder(ctx context.Context, orderID string) (model.Order, error) {
-	//TODO
-	return model.Order{}, nil
+// GetOrder выполняет прямой SQL-запрос к базе данных для получения информации о заказе по его номеру.
+// Метод считывает поля order_num, order_status и accrual.
+// Возвращаемые ошибки:
+//   - ErrOrderNotFound: если в таблице orders отсутствует запись с указанным order_num (маппинг pgx.ErrNoRows);
+//   - Данные оборачиваются в fmt.Errorf, если произошла сетевая или синтаксическая ошибка при выполнении запроса.
+func (r *OrderRepository) GetOrder(ctx context.Context, orderNum string) (model.Order, error) {
+
+	query := `
+		SELECT order_num, order_status, accrual
+		FROM orders
+		WHERE order_num = $1
+	`
+
+	var order model.Order
+
+	err := r.pool.QueryRow(ctx, query, orderNum).Scan(&order.OrderNum, &order.Status, &order.Accrual)
+	if err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Order{}, ErrOrderNotFound
+		}
+
+		return model.Order{}, fmt.Errorf("query row: %w", err)
+	}
+
+	return order, nil
 }
 
 // CreateOrder атомарно (в рамках транзакции) сохраняет новый заказ в таблицу orders,
