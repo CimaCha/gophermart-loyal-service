@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRoutes регистрирует все основные группы маршрутов приложения в корневом роутере chi.Router.
-// Разделяет эндпоинты на логические блоки (/api/goods и /api/orders) и пробрасывает в них
+// Разделяет эндпоинты на логические блоки и пробрасывает в них
 // инициализированный контейнер зависимостей deps.
 func SetupRoutes(r chi.Router, deps *deps.Dependencies) {
 	r.Route("/api/goods", func(r chi.Router) {
