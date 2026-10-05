@@ -8,10 +8,10 @@ import (
 	"os"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/accrualclient"
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 

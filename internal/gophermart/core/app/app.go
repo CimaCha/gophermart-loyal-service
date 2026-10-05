@@ -16,7 +16,6 @@ import (
 	orderh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/handler"
 	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/repository"
 	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/order/service"
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/transport/http/router"
 	userh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler"
 	userrepo "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/repository"
@@ -27,6 +26,7 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/passhasher"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 	"github.com/shopspring/decimal"
 
 	balanceh "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/balance/handler"
@@ -115,6 +115,10 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		cfg,
 		log,
 	)
+
+	if err := dependencies.Validate(); err != nil {
+		return nil, fmt.Errorf("deps validate: %w", err)
+	}
 	// Регистрируем middleware для rootRouter
 	rootRouter.Use(
 		chimiddleware.Recoverer,

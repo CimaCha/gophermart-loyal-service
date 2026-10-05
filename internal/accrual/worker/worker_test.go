@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	goodsmodel "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
-	ordermodel "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
+	ordermodel "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

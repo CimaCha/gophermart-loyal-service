@@ -6,15 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/model"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service"
 )
-
-var errInvalidCredentialsRequest = errors.New("invalid credentials request")
 
 // UserService определяет интерфейс взаимодействия со слоем бизнес-логики пользователей.
 type UserService interface {
@@ -45,8 +42,23 @@ func New(logger *slog.Logger, userService UserService) *Handler {
 //   - 409 Conflict — переданный логин уже занят другим пользователем.
 //   - 500 Internal Server Error — непредвиденная ошибка на стороне хранилища.
 func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request) {
-	credentials, err := decodeCredentials(request.Body)
-	if err != nil {
+
+	var credentials model.Credentials
+
+	if err := json.NewDecoder(request.Body).Decode(&credentials); err != nil {
+		h.logger.Error(
+			"failed to decode json into struct",
+			"err", err,
+		)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if err := credentials.Validate(); err != nil {
+		h.logger.Info(
+			"failed to validate credentials",
+			"err", err,
+		)
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -68,8 +80,23 @@ func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request
 //   - 401 Unauthorized — передан неверный логин или пароль.
 //   - 500 Internal Server Error — внутренняя ошибка выполнения запроса к СУБД.
 func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
-	credentials, err := decodeCredentials(request.Body)
-	if err != nil {
+
+	var credentials model.Credentials
+
+	if err := json.NewDecoder(request.Body).Decode(&credentials); err != nil {
+		h.logger.Error(
+			"failed to decode json into struct",
+			"err", err,
+		)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if err := credentials.Validate(); err != nil {
+		h.logger.Info(
+			"failed to validate credentials",
+			"err", err,
+		)
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -84,27 +111,20 @@ func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func decodeCredentials(r io.Reader) (model.Credentials, error) {
-	var credentials model.Credentials
-	decoder := json.NewDecoder(r)
-	if err := decoder.Decode(&credentials); err != nil {
-		return model.Credentials{}, err
-	}
-	if credentials.Login == "" || credentials.Password == "" {
-		return model.Credentials{}, errInvalidCredentialsRequest
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return model.Credentials{}, errInvalidCredentialsRequest
-	}
-	return credentials, nil
-}
-
 func (h *Handler) writeServiceError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
 	switch {
 	case errors.Is(err, service.ErrUserAlreadyExists):
+		h.logger.Info(
+			"user already exists",
+			"err", err,
+		)
 		status = http.StatusConflict
 	case errors.Is(err, service.ErrInvalidCredentials):
+		h.logger.Info(
+			"invalid credentials",
+			"err", err,
+		)
 		status = http.StatusUnauthorized
 	default:
 		h.logger.Error("user request failed", "err", err)

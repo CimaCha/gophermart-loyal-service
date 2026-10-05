@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 )
 
 type RateLimiter interface {

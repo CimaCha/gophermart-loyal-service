@@ -12,12 +12,12 @@ import (
 	goodsrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/repository"
 	goodssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/service"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goodscache"
-	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/handler"
-	ordersrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/repository"
-	orderssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
+	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/handler"
+	ordersrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/repository"
+	orderssvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/service"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/http/httpmiddleware"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/core/deps"
@@ -87,6 +87,10 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		log,
 		rateLimitStore,
 	)
+
+	if err := dependencies.Validate(); err != nil {
+		return nil, fmt.Errorf("deps validate: %w", err)
+	}
 
 	rootRouter.Use(
 		chimiddleware.Recoverer,

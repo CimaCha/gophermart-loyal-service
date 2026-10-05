@@ -9,8 +9,8 @@ import (
 
 	_ "embed"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 

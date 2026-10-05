@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
 	"github.com/shopspring/decimal"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
