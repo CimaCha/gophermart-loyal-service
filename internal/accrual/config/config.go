@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/slogger"
 )
 

@@ -3,6 +3,8 @@
 package model
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +19,14 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
+var (
+	// ErrEmptyLogin возвращается, если логин отсутствует или состоит только из пробелов.
+	ErrEmptyLogin = errors.New("login is required")
+
+	// ErrEmptyPassword возвращается, если пароль отсутствует или состоит только из пробелов.
+	ErrEmptyPassword = errors.New("password is required")
+)
+
 // UserInfo представляет доменную модель учетной записи пользователя в системе,
 // инкапсулирующую его уникальный UUID, логин, криптографический хеш пароля и дату регистрации.
 type UserInfo struct {
@@ -28,4 +38,20 @@ type UserInfo struct {
 	PasswordHash string
 	// CreatedAt фиксирует точную дату и время регистрации аккаунта в системе.
 	CreatedAt time.Time
+}
+
+// Validate проверяет корректность учетных данных пользователя.
+//
+// Метод убеждается, что логин и пароль заданы и не состоят
+// исключительно из пробельных символов.
+func (c Credentials) Validate() error {
+	if strings.TrimSpace(c.Login) == "" {
+		return ErrEmptyLogin
+	}
+
+	if strings.TrimSpace(c.Password) == "" {
+		return ErrEmptyPassword
+	}
+
+	return nil
 }

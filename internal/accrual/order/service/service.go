@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
-	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/repository"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
+	orderrepo "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/repository"
 	"github.com/google/uuid"
 )
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

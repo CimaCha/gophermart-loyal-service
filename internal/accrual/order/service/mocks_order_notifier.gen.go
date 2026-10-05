@@ -5,7 +5,7 @@
 package service
 
 import (
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
 	mock "github.com/stretchr/testify/mock"
 )
 

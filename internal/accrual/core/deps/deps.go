@@ -3,12 +3,18 @@
 package deps
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
 	goodsh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler"
-	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/handler"
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/ratelimitstore"
+	ordersh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/handler"
+	"github.com/CimaCha/gophermart-loyal-service/pkg/ratelimitstore"
+)
+
+var (
+	// ErrNilDependency означает, что обязательная зависимость контейнера не была инициализирована.
+	ErrNilDependency = errors.New("dependency is required")
 )
 
 // Dependencies объединяет в себе все HTTP-обработчики (handlers), настройки конфигурации,
@@ -42,4 +48,35 @@ func New(
 		Logger:        logger,
 		RLS:           rls,
 	}
+}
+
+// Validate проверяет, что все обязательные зависимости приложения инициализированы.
+//
+// Метод предотвращает запуск приложения с неполностью собранным контейнером зависимостей.
+func (d *Dependencies) Validate() error {
+	if d == nil {
+		return ErrNilDependency
+	}
+
+	if d.OrdersHandler == nil {
+		return ErrNilDependency
+	}
+
+	if d.GoodsHandler == nil {
+		return ErrNilDependency
+	}
+
+	if d.Cfg == nil {
+		return ErrNilDependency
+	}
+
+	if d.Logger == nil {
+		return ErrNilDependency
+	}
+
+	if d.RLS == nil {
+		return ErrNilDependency
+	}
+
+	return nil
 }

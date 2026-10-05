@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/model"
-	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/orders/service"
+	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/model"
+	ordersvc "github.com/CimaCha/gophermart-loyal-service/internal/accrual/order/service"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

@@ -51,7 +51,7 @@ func (c *Config) Validate() error {
 		return errors.New("jobs queue size must be at least 1")
 	}
 	if c.TargetRPS <= 0 {
-		return errors.New("target RPS must be at least 1")
+		return errors.New("target RPS must be greater than zero")
 	}
 	return nil
 }

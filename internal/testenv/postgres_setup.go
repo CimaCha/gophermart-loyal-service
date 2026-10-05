@@ -5,7 +5,7 @@ package testenv
 import (
 	"context"
 	"database/sql"
-	"embed"
+	"io/fs"
 	"log"
 
 	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
@@ -28,7 +28,7 @@ type Environment struct {
 // Setup инициализирует и поднимает чистый Docker-контейнер с PostgreSQL, регистрирует
 // поддержку расширений типов данных decimal для pgx и накатывает SQL-миграции из переданной FS.
 // В случае критических сбоев конфигурации или недоступности Docker-демона завершает выполнение через log.Fatalf.
-func Setup(ctx context.Context, migrationsFS embed.FS) *Environment {
+func Setup(ctx context.Context, migrationsFS fs.FS) *Environment {
 
 	pgContainer, err := pg.Run(
 		ctx,
