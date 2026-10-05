@@ -76,7 +76,45 @@ func fetchOrderStatusAndAccrual(t *testing.T, orderNum string) (model.OrderStatu
 	return status, accrual
 }
 
-// Createorder, GetPendingOrders, FinalizeOrder, UpdateStatus
+// Createorder, GetPendingOrders, FinalizeOrder, UpdateStatus, GetOrder
+
+func TestOrderRepository_GetOrder_Success(t *testing.T) {
+	cleanDB(t)
+	repo := newRepo(t)
+
+	insertOrder(t, "123", model.OrderStatusProcessed)
+
+	accrual := decimal.RequireFromString("123.45")
+	_, err := testPool.Exec(
+		context.Background(),
+		`UPDATE orders SET accrual = $1 WHERE order_num = $2`,
+		accrual,
+		"123",
+	)
+	require.NoError(t, err)
+
+	order, err := repo.GetOrder(context.Background(), "123")
+
+	require.NoError(t, err)
+
+	assert.Equal(t, "123", order.OrderNum)
+	assert.Equal(t, model.OrderStatusProcessed, order.Status)
+
+	require.NotNil(t, order.Accrual)
+	assert.True(t, order.Accrual.Equal(accrual))
+}
+
+func TestOrderRepository_GetOrder_NotFound(t *testing.T) {
+	cleanDB(t)
+	repo := newRepo(t)
+
+	order, err := repo.GetOrder(context.Background(), "does-not-exist")
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrOrderNotFound)
+	assert.Equal(t, model.Order{}, order)
+}
+
 func TestOrderRepository_CreateOrder_Success(t *testing.T) {
 	cleanDB(t)
 	repo := newRepo(t)

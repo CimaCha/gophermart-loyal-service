@@ -37,7 +37,7 @@ func registerOrdersRoutes(r chi.Router, deps *deps.Dependencies) {
 	r.With(
 		chimiddleware.AllowContentType("application/json"),
 		middleware.GlobalRateLimit(deps.RLS, getorderCfg, "getorders"),
-	).Get("/{number}", deps.OrdersHandler.GetOrders)
+	).Get("/{number}", deps.OrdersHandler.GetOrder)
 }
 
 // Метод для регистрации маршрутов сервиса user
