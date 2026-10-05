@@ -1,3 +1,5 @@
+// Package router отвечает за централизованное конфигурирование маршрутов (эндпоинтов) API
+// и связывание путей запросов с соответствующими HTTP-обработчиками и middleware.
 package router
 
 import (
@@ -7,6 +9,9 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
+// SetupRoutes регистрирует все основные группы маршрутов приложения в корневом роутере chi.Router.
+// Разделяет эндпоинты на логические блоки пробрасывает в них
+// инициализированный контейнер зависимостей deps.
 func SetupRoutes(r chi.Router, deps *deps.Dependencies) {
 	r.Route("/api/user", func(r chi.Router) {
 		registerUserRoutes(r, deps)
