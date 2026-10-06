@@ -1,9 +1,9 @@
 -- +goose Up
-CREATE TYPE o_status AS ENUM ('REGISTERED', 'PROCESSING', 'INVALID', 'PROCESSED');
+CREATE TYPE accrual_order_status AS ENUM ('REGISTERED', 'PROCESSING', 'INVALID', 'PROCESSED');
 
 CREATE TABLE IF NOT EXISTS orders (
                                       order_num VARCHAR(255) PRIMARY KEY NOT NULL,
-                                      order_status o_status DEFAULT 'REGISTERED' NOT NULL,
+                                      order_status accrual_order_status DEFAULT 'REGISTERED' NOT NULL,
                                       accrual NUMERIC(15, 2) DEFAULT NULL,
                                       uploaded_at TIMESTAMPTZ DEFAULT NOW()
                                   );
@@ -26,4 +26,4 @@ DROP INDEX IF EXISTS idx_goods_order_num;
 DROP INDEX IF EXISTS idx_orders_active_statuses;
 DROP TABLE IF EXISTS goods;
 DROP TABLE IF EXISTS orders;
-DROP TYPE IF EXISTS o_status;
+DROP TYPE IF EXISTS accrual_order_status;
