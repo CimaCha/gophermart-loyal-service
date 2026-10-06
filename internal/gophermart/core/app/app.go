@@ -63,7 +63,16 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	// Root router
 	rootRouter := chi.NewRouter()
 
-	pool, err := postgres.New(*cfg.DB, log, gophermartMigrations.EmbedMigrations)
+	if err := postgres.SetupMigrations(
+		*cfg.DB,
+		log,
+		gophermartMigrations.EmbedMigrations,
+		"goose_db_version_gophermart",
+	); err != nil {
+		return nil, fmt.Errorf("database initialize: %w", err)
+	}
+
+	pool, err := postgres.New(*cfg.DB, log)
 	if err != nil {
 		log.Error("failed to create db connection pool", "err", err)
 		return nil, fmt.Errorf("database initialize: %w", err)

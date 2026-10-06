@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 func cleanDB(t *testing.T) {
 	t.Helper()
 
-	_, err := testPool.Exec(context.Background(), `TRUNCATE users, orders RESTART IDENTITY CASCADE`)
+	_, err := testPool.Exec(context.Background(), `TRUNCATE users, gophermart_orders RESTART IDENTITY CASCADE`)
 	require.NoError(t, err)
 }
 
@@ -73,7 +73,7 @@ func TestOrderRepository_UpdateStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = testPool.Exec(ctx, `
-		INSERT INTO orders(order_num, user_id, order_status)
+		INSERT INTO gophermart_orders(order_num, user_id, order_status)
 		VALUES ($1,$2,$3)
 	`, "12345678903", userID, model.OrderStatusNew.String())
 
@@ -91,7 +91,7 @@ func TestOrderRepository_UpdateStatus(t *testing.T) {
 
 	err = testPool.QueryRow(
 		ctx,
-		`SELECT order_status FROM orders WHERE order_num=$1`,
+		`SELECT order_status FROM gophermart_orders WHERE order_num=$1`,
 		"12345678903",
 	).Scan(&status)
 
@@ -115,7 +115,7 @@ func TestOrderRepository_GetPendingOrders(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = testPool.Exec(ctx, `
-		INSERT INTO orders(order_num, user_id, order_status)
+		INSERT INTO gophermart_orders(order_num, user_id, order_status)
 		VALUES
 		('1',$1,'NEW'),
 		('2',$1,'PROCESSING'),
@@ -156,7 +156,7 @@ func TestOrderRepository_UpdateOrderResultTx_AlreadyProcessed(t *testing.T) {
 	require.NoError(t, err)
 
 	queryOrder := `
-		INSERT INTO orders
+		INSERT INTO gophermart_orders
 		(order_num, user_id, order_status)
 		VALUES ($1, $2, $3)
 	`
@@ -198,7 +198,7 @@ func TestOrderRepository_UpdateOrderResultTx(t *testing.T) {
 	require.NoError(t, err)
 
 	queryOrder := `
-		INSERT INTO orders
+		INSERT INTO gophermart_orders
 		(order_num, user_id, order_status)
 		VALUES ($1, $2, $3)
 	`
@@ -224,7 +224,7 @@ func TestOrderRepository_UpdateOrderResultTx(t *testing.T) {
 	)
 	err = testPool.QueryRow(
 		ctx,
-		`SELECT order_status, accrual FROM orders WHERE order_num=$1`,
+		`SELECT order_status, accrual FROM gophermart_orders WHERE order_num=$1`,
 		"12345678903",
 	).Scan(&status, &value)
 
@@ -262,7 +262,7 @@ func TestCreateOrder_Success(t *testing.T) {
 
 	query := `
 		SELECT order_num, user_id, order_status, accrual, uploaded_at
-			FROM orders WHERE order_num = $1
+			FROM gophermart_orders WHERE order_num = $1
 		`
 
 	var result model.Order
@@ -398,7 +398,7 @@ func TestGetOrders_Success(t *testing.T) {
 	newTime := time.Now().UTC().Truncate(time.Millisecond)
 
 	_, err := testPool.Exec(ctx, `
-		INSERT INTO orders(order_num, user_id, order_status, accrual, uploaded_at)
+		INSERT INTO gophermart_orders(order_num, user_id, order_status, accrual, uploaded_at)
 		VALUES
 			($1,$2,$3,$4,$5),
 			($6,$7,$8,$9,$10),

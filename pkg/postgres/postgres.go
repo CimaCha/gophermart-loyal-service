@@ -32,7 +32,7 @@ func (t *TxBeginner) BeginFunc(ctx context.Context, fn func(pgx.Tx) error) error
 }
 
 // New создает новый пул соединений с базой данных PostgreSQL и выполняет миграции.
-func New(cfg Config, log *slog.Logger, migrationsFS embed.FS) (*pgxpool.Pool, error) {
+func New(cfg Config, log *slog.Logger) (*pgxpool.Pool, error) {
 
 	log.Info(
 		"connecting to database",
@@ -40,7 +40,6 @@ func New(cfg Config, log *slog.Logger, migrationsFS embed.FS) (*pgxpool.Pool, er
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.URI)
 	if err != nil {
-
 		log.Error(
 			"failed to parse conn string",
 			"err", err,
@@ -64,7 +63,19 @@ func New(cfg Config, log *slog.Logger, migrationsFS embed.FS) (*pgxpool.Pool, er
 		return nil, fmt.Errorf("new with config: %w", err)
 	}
 
-	// Здесь подтягиваем миграции при старте БД.
+	return pool, nil
+}
+
+// SetupMigrations выполняет миграции базы данных с использованием встроенной файловой системы.
+//
+// gooseTableName позволяет использовать отдельную таблицу версий миграций
+// для каждого сервиса при работе с одной базой данных.
+func SetupMigrations(
+	cfg Config,
+	log *slog.Logger,
+	migrationsFS embed.FS,
+	gooseTableName string,
+) error {
 
 	log.Info(
 		"running db migrations",
@@ -73,32 +84,33 @@ func New(cfg Config, log *slog.Logger, migrationsFS embed.FS) (*pgxpool.Pool, er
 	db, err := sql.Open("pgx", cfg.URI)
 	if err != nil {
 		log.Error(
-			"faild to open sql db",
+			"failed to open sql db",
 			"err", err,
 		)
-		pool.Close()
-		return nil, fmt.Errorf("open db for migrations: %w", err)
+
+		return fmt.Errorf("open db for migrations: %w", err)
 	}
 	defer db.Close()
 
 	goose.SetBaseFS(migrationsFS)
+	goose.SetTableName(gooseTableName)
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Error(
 			"failed to set dialect",
 			"err", err,
 		)
-		return nil, fmt.Errorf("goose set dialect: %w", err)
+
+		return fmt.Errorf("goose set dialect: %w", err)
 	}
 
 	if err := goose.Up(db, "."); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("goose up: %w", err)
+		return fmt.Errorf("goose up: %w", err)
 	}
 
 	log.Info(
-		"database initialized successfully",
+		"database migrations completed successfully",
 	)
 
-	return pool, nil
+	return nil
 }

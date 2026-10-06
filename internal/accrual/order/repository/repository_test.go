@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 func cleanDB(t *testing.T) {
 	t.Helper()
 
-	_, err := testPool.Exec(context.Background(), `TRUNCATE goods, orders RESTART IDENTITY CASCADE`)
+	_, err := testPool.Exec(context.Background(), `TRUNCATE goods, accrual_orders RESTART IDENTITY CASCADE`)
 	require.NoError(t, err)
 }
 
@@ -46,7 +46,7 @@ func insertOrder(t *testing.T, orderNum string, status model.OrderStatus, goods 
 	ctx := context.Background()
 
 	_, err := testPool.Exec(ctx,
-		`INSERT INTO orders (order_num, order_status, uploaded_at) VALUES ($1, $2, $3)`,
+		`INSERT INTO accrual_orders (order_num, order_status, uploaded_at) VALUES ($1, $2, $3)`,
 		orderNum, status, time.Now(),
 	)
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func fetchOrderStatusAndAccrual(t *testing.T, orderNum string) (model.OrderStatu
 		accrual *decimal.Decimal
 	)
 	err := testPool.QueryRow(context.Background(),
-		`SELECT order_status, accrual FROM orders WHERE order_num = $1`,
+		`SELECT order_status, accrual FROM accrual_orders WHERE order_num = $1`,
 		orderNum,
 	).Scan(&status, &accrual)
 	require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestOrderRepository_GetOrder_Success(t *testing.T) {
 	accrual := decimal.RequireFromString("123.45")
 	_, err := testPool.Exec(
 		context.Background(),
-		`UPDATE orders SET accrual = $1 WHERE order_num = $2`,
+		`UPDATE accrual_orders SET accrual = $1 WHERE order_num = $2`,
 		accrual,
 		"123",
 	)

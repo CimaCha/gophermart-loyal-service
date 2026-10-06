@@ -46,7 +46,7 @@ func (r *OrderRepository) UpdateOrderResultTx(
 ) (bool, error) {
 
 	query := `
-		UPDATE orders
+		UPDATE gophermart_orders
 		SET order_status = $1, accrual = $2
 		WHERE order_num = $3
 		AND order_status NOT IN ('PROCESSED', 'INVALID')
@@ -73,7 +73,7 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, 
 
 	query := `
 		SELECT order_num, user_id, order_status, accrual, uploaded_at
-		FROM orders
+		FROM gophermart_orders
 		WHERE order_status IN ('NEW', 'PROCESSING') 
 	`
 
@@ -113,7 +113,7 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, 
 func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, status model.OrderStatus) error {
 
 	query := `
-		UPDATE orders SET order_status = $1
+		UPDATE gophermart_orders SET order_status = $1
 		WHERE order_num = $2
 	`
 
@@ -136,7 +136,7 @@ func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model
 
 	query := `
 		SELECT order_num, order_status, accrual, uploaded_at
-		FROM orders
+		FROM gophermart_orders
 		WHERE user_id = $1
 		ORDER BY uploaded_at ASC
 	`
@@ -182,7 +182,7 @@ func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model
 func (r *OrderRepository) CreateOrder(ctx context.Context, order *model.Order) error {
 
 	query := `
-		INSERT INTO orders 
+		INSERT INTO gophermart_orders 
 			(order_num, user_id, order_status, accrual, uploaded_at)
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (order_num) DO UPDATE SET order_num = EXCLUDED.order_num
