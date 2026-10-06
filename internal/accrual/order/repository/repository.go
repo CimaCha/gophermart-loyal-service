@@ -43,7 +43,7 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, 
     		o.order_status,
     		g.description,
     		g.price
-		FROM orders o
+		FROM accrual_orders o
 		JOIN goods g ON g.order_num = o.order_num
 		WHERE o.order_status IN ('REGISTERED', 'PROCESSING')
 		ORDER BY o.order_num
@@ -92,7 +92,7 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]model.Order, 
 func (r *OrderRepository) FinalizeOrder(ctx context.Context, orderNum string, status model.OrderStatus, accrual decimal.Decimal) (updated bool, err error) {
 
 	query := `
-		UPDATE orders
+		UPDATE accrual_orders
 		SET
 			order_status = $1,
 			accrual = $2
@@ -121,7 +121,7 @@ func (r *OrderRepository) FinalizeOrder(ctx context.Context, orderNum string, st
 func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, status model.OrderStatus) (updated bool, err error) {
 
 	query := `
-		UPDATE orders
+		UPDATE accrual_orders
 		SET order_status = $1
 		WHERE order_num = $2
 		AND order_status NOT IN ('PROCESSED', 'INVALID')
@@ -149,7 +149,7 @@ func (r *OrderRepository) GetOrder(ctx context.Context, orderNum string) (model.
 
 	query := `
 		SELECT order_num, order_status, accrual
-		FROM orders
+		FROM accrual_orders
 		WHERE order_num = $1
 	`
 
@@ -181,7 +181,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *model.Order) e
 	defer tx.Rollback(ctx)
 
 	query := `
-		INSERT INTO orders 
+		INSERT INTO accrual_orders 
 			(order_num, order_status, uploaded_at)
 			VALUES ($1, $2, $3)
 			ON CONFLICT (order_num) DO UPDATE SET order_num = EXCLUDED.order_num
