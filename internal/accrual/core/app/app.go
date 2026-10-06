@@ -22,7 +22,7 @@ import (
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/config"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/core/deps"
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/transport/http/router"
-	migrations "github.com/CimaCha/gophermart-loyal-service/migrations/accrual"
+	accrualMigrations "github.com/CimaCha/gophermart-loyal-service/migrations/accrual"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
 	"github.com/shopspring/decimal"
@@ -53,7 +53,16 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	// Root router
 	rootRouter := chi.NewRouter()
 
-	pool, err := postgres.New(*cfg.DB, log, migrations.EmbedMigrations)
+	if err := postgres.SetupMigrations(
+		*cfg.DB,
+		log,
+		accrualMigrations.EmbedMigrations,
+		"goose_db_version_accrual",
+	); err != nil {
+		return nil, fmt.Errorf("database initialize: %w", err)
+	}
+
+	pool, err := postgres.New(*cfg.DB, log)
 	if err != nil {
 		log.Error("failed to create db connection pool", "err", err)
 		return nil, fmt.Errorf("database initialize: %w", err)
