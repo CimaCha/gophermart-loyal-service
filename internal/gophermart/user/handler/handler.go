@@ -46,7 +46,7 @@ func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request
 	var credentials model.Credentials
 
 	if err := json.NewDecoder(request.Body).Decode(&credentials); err != nil {
-		h.logger.Error(
+		h.logger.Debug(
 			"failed to decode json into struct",
 			"err", err,
 		)
@@ -84,7 +84,7 @@ func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
 	var credentials model.Credentials
 
 	if err := json.NewDecoder(request.Body).Decode(&credentials); err != nil {
-		h.logger.Error(
+		h.logger.Debug(
 			"failed to decode json into struct",
 			"err", err,
 		)

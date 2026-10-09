@@ -138,7 +138,7 @@ func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model
 		SELECT order_num, order_status, accrual, uploaded_at
 		FROM gophermart_orders
 		WHERE user_id = $1
-		ORDER BY uploaded_at ASC
+		ORDER BY uploaded_at DESC
 	`
 
 	orders := make([]model.Order, 0, 32)
