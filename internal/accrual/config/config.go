@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/caarlos0/env/v11"
+
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/postgres"
@@ -29,10 +31,6 @@ type Config struct {
 	W *worker.Config
 }
 
-type envParser interface {
-	ParseEnv() error
-}
-
 type validator interface {
 	Validate() error
 }
@@ -44,36 +42,42 @@ const (
 
 // Load инициализирует, считывает и валидирует полную конфигурацию приложения.
 // Источники обрабатываются в следующем приоритете (от высшего к низшему):
-// 1. Переменные окружения (Environment Variables)
-// 2. Флаги командной строки (CLI Flags)
+// 1. Явно переданные флаги командной строки (CLI Flags)
+// 2. Переменные окружения (Environment Variables)
 // 3. Значения из конфигурационного YAML-файла
 // 4. Дефолтные значения подсистем.
 func Load(args []string) (*Config, error) {
 
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 
-	configPathFlag := fs.String("config", defaultConfigPath, "path to config file")
+	configPath := defaultConfigPath
+	if v := os.Getenv(configPathEnvVar); v != "" {
+		configPath = v
+	}
+	configPathFlag := fs.String("config", configPath, "path to config file")
 	serverConfig := httpserver.RegisterFlags(fs)
 	dbConfig := postgres.RegisterFlags(fs)
 
-	// Парсим флаги
 	if err := fs.Parse(args); err != nil {
 		return nil, fmt.Errorf("parse flags: %w", err)
 	}
 
-	configPath := *configPathFlag
-	if v := os.Getenv(configPathEnvVar); v != "" {
-		configPath = v
-	}
-
-	// Парсим env если есть, то они приоритет
-	for _, p := range []envParser{serverConfig, dbConfig} {
-		if err := p.ParseEnv(); err != nil {
+	environment := env.ToMap(os.Environ())
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "a":
+			delete(environment, "RUN_ADDRESS")
+		case "d":
+			delete(environment, "DATABASE_URI")
+		}
+	})
+	for _, p := range []any{serverConfig, dbConfig} {
+		if err := env.ParseWithOptions(p, env.Options{Environment: environment}); err != nil {
 			return nil, fmt.Errorf("parse env: %w", err)
 		}
 	}
 
-	yc, err := loadYAML(configPath)
+	yc, err := loadYAML(*configPathFlag)
 	if err != nil {
 		return nil, fmt.Errorf("load yaml config: %w", err)
 	}

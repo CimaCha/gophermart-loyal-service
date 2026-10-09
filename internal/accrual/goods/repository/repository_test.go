@@ -45,30 +45,33 @@ func mustDecimal(s string) decimal.Decimal {
 // TestGoodsRepository_RegisterGoods_Success проверяет, что валидное правило
 // сохраняется в таблицу rewards.
 func TestGoodsRepository_RegisterGoods_Success(t *testing.T) {
-	cleanDB(t)
-	repo := New(testPool)
-	ctx := context.Background()
-
-	d := mustDecimal("10")
-	goods := model.GoodsInfo{
-		Match:      "Bork",
-		Reward:     &d,
-		RewardType: model.RewardTypePercent,
+	tests := []struct {
+		name       string
+		rewardType model.RewardType
+		storedType string
+	}{
+		{name: "percent", rewardType: model.RewardTypePercent, storedType: "PERCENT"},
+		{name: "points", rewardType: model.RewardTypePoints, storedType: "POINTS"},
 	}
-
-	err := repo.RegisterGoods(ctx, goods)
-	require.NoError(t, err)
-
-	var match, rewardType string
-	var reward decimal.Decimal
-	err = testPool.QueryRow(ctx,
-		`SELECT match, reward_value, reward_type FROM rewards WHERE match = $1`, "Bork",
-	).Scan(&match, &reward, &rewardType)
-	require.NoError(t, err)
-
-	assert.Equal(t, "Bork", match)
-	assert.True(t, mustDecimal("10").Equal(reward))
-	assert.Equal(t, "%", rewardType)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanDB(t)
+			repo := New(testPool)
+			ctx := context.Background()
+			d := mustDecimal("10")
+			goods := model.GoodsInfo{Match: "Bork", Reward: &d, RewardType: tt.rewardType}
+			require.NoError(t, repo.RegisterGoods(ctx, goods))
+			var match, rewardType string
+			var reward decimal.Decimal
+			err := testPool.QueryRow(ctx,
+				`SELECT match, reward_value, reward_type FROM rewards WHERE match = $1`, "Bork",
+			).Scan(&match, &reward, &rewardType)
+			require.NoError(t, err)
+			assert.Equal(t, "Bork", match)
+			assert.True(t, d.Equal(reward))
+			assert.Equal(t, tt.storedType, rewardType)
+		})
+	}
 }
 
 // TestGoodsRepository_RegisterGoods_Duplicate проверяет, что повторная
@@ -102,17 +105,9 @@ func TestGoodsRepository_GetAllGoods_Success(t *testing.T) {
 	d1 := mustDecimal("10")
 	d2 := mustDecimal("500")
 
-	require.NoError(t, repo.RegisterGoods(ctx, model.GoodsInfo{
-		Match:      "Bork",
-		Reward:     &d1,
-		RewardType: model.RewardTypePercent,
-	}))
-
-	require.NoError(t, repo.RegisterGoods(ctx, model.GoodsInfo{
-		Match:      "iPhone",
-		Reward:     &d2,
-		RewardType: model.RewardTypePoints,
-	}))
+	_, err := testPool.Exec(ctx, `INSERT INTO rewards (match, reward_value, reward_type) VALUES
+        ('Bork', 10, 'PERCENT'), ('iPhone', 500, 'POINTS')`)
+	require.NoError(t, err)
 
 	got, err := repo.GetAllGoods(ctx)
 	require.NoError(t, err)
@@ -131,11 +126,15 @@ func TestGoodsRepository_GetAllGoods_Success(t *testing.T) {
 	}
 
 	for _, g := range got {
-		exp := expected[g.Match]
+		exp, ok := expected[g.Match]
+		require.True(t, ok, "unexpected match: %s", g.Match)
+		require.NotNil(t, g.Reward)
+		delete(expected, g.Match)
 
 		assert.Equal(t, exp.RewardType, g.RewardType)
 		assert.True(t, exp.Reward.Equal(*g.Reward))
 	}
+	require.Empty(t, expected)
 }
 
 // TestGoodsRepository_GetAllGoods_Empty проверяет, что при отсутствии правил

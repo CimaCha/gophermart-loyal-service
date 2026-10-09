@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/model"
+	"github.com/shopspring/decimal"
 )
 
 // GoodsRepository определяет интерфейс для взаимодействия со слоем постоянного хранения данных товаров.
@@ -42,6 +43,13 @@ func (s *GoodsService) RegisterGoods(ctx context.Context, goods model.GoodsInfo)
 	if err := goods.Validate(); err != nil {
 		return err
 	}
+
+	// NUMERIC(15, 2): кэш должен хранить то же округлённое значение, что и БД.
+	reward := goods.Reward.Round(2)
+	if !reward.IsPositive() || reward.GreaterThanOrEqual(decimal.New(1, 13)) {
+		return model.ErrInvalidGoods
+	}
+	goods.Reward = &reward
 
 	if err := s.repo.RegisterGoods(ctx, goods); err != nil {
 		return fmt.Errorf("register goods: %w", err)

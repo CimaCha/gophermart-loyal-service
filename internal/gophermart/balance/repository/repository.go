@@ -131,13 +131,13 @@ func (r *BalanceRepository) Withdraw(
 }
 
 // GetWithdrawals возвращает хронологический список всех успешных операций списания баллов
-// конкретного пользователя, отсортированных по дате проведения от старых к новым.
+// конкретного пользователя, отсортированных по дате проведения от новых к старым.
 func (r *BalanceRepository) GetWithdrawals(ctx context.Context, userID uuid.UUID) ([]model.Withdrawal, error) {
 	const query = `
     SELECT order_num, sum, processed_at
     FROM transactions
 	WHERE user_uuid = $1
-    ORDER BY processed_at ASC
+    ORDER BY processed_at DESC
 `
 	rows, err := r.pool.Query(ctx, query, userID)
 	if err != nil {

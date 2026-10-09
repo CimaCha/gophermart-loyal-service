@@ -412,14 +412,14 @@ func TestGetOrders_Success(t *testing.T) {
 
 	expected := []model.Order{
 		{
-			OrderNum:   "12345678903",
-			Status:     model.OrderStatusNew,
-			UploadedAt: oldTime,
-		},
-		{
 			OrderNum:   "79927398713",
 			Status:     model.OrderStatusProcessed,
 			UploadedAt: newTime,
+		},
+		{
+			OrderNum:   "12345678903",
+			Status:     model.OrderStatusNew,
+			UploadedAt: oldTime,
 		},
 	}
 

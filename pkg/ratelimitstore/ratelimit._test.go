@@ -140,10 +140,12 @@ func TestRateLimitStorage_CleanupWorker(t *testing.T) {
 
 	storage := New(ctx, cfg, newTestLogger())
 
+	storage.rwm.Lock()
 	storage.m["expired"] = &Item{
 		c:         1,
 		expiresAt: time.Now().Add(-time.Second),
 	}
+	storage.rwm.Unlock()
 
 	require.Eventually(t, func() bool {
 		storage.rwm.RLock()

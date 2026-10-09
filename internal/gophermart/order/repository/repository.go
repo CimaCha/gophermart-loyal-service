@@ -131,14 +131,14 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, sta
 }
 
 // GetOrders извлекает полный перечень всех заказов, загруженных конкретным пользователем (uid).
-// Результаты сортируются по дате загрузки в хронологическом порядке (от старых к новым).
+// Результаты сортируются по дате загрузки от новых к старым.
 func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
 
 	query := `
 		SELECT order_num, order_status, accrual, uploaded_at
 		FROM gophermart_orders
 		WHERE user_id = $1
-		ORDER BY uploaded_at ASC
+		ORDER BY uploaded_at DESC
 	`
 
 	orders := make([]model.Order, 0, 32)

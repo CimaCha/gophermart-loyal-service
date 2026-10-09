@@ -29,9 +29,19 @@ func New(pool *pgxpool.Pool) *GoodsRepository {
 // Если правило для указанного шаблона (match) уже существует (нарушение ограничения уникальности 23505),
 // метод перехватывает ошибку PostgreSQL и возвращает доменную ошибку model.ErrMatchAlreadyExists.
 func (r *GoodsRepository) RegisterGoods(ctx context.Context, goods model.GoodsInfo) error {
+	var rewardType string
+	switch goods.RewardType {
+	case model.RewardTypePercent:
+		rewardType = "PERCENT"
+	case model.RewardTypePoints:
+		rewardType = "POINTS"
+	default:
+		return model.ErrInvalidGoods
+	}
+
 	_, err := r.pool.Exec(ctx,
 		`INSERT INTO rewards (match, reward_value, reward_type) VALUES ($1, $2, $3)`,
-		goods.Match, goods.Reward, goods.RewardType,
+		goods.Match, goods.Reward, rewardType,
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -55,8 +65,17 @@ func (r *GoodsRepository) GetAllGoods(ctx context.Context) ([]model.GoodsInfo, e
 	var goods []model.GoodsInfo
 	for rows.Next() {
 		var g model.GoodsInfo
-		if err := rows.Scan(&g.Match, &g.Reward, &g.RewardType); err != nil {
+		var rewardType string
+		if err := rows.Scan(&g.Match, &g.Reward, &rewardType); err != nil {
 			return nil, fmt.Errorf("rows scan: %w", err)
+		}
+		switch rewardType {
+		case "PERCENT":
+			g.RewardType = model.RewardTypePercent
+		case "POINTS":
+			g.RewardType = model.RewardTypePoints
+		default:
+			return nil, fmt.Errorf("unexpected reward type: %q", rewardType)
 		}
 		goods = append(goods, g)
 	}

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/caarlos0/env/v11"
+
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/accrualclient"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/worker"
 	"github.com/CimaCha/gophermart-loyal-service/pkg/httpserver"
@@ -32,28 +34,29 @@ type Config struct {
 	W *worker.Config
 }
 
-type envParser interface {
-	ParseEnv() error
-}
-
 type validator interface {
 	Validate() error
 }
 
 const (
-	configPathEnvVar = "GOPHERMART_CONFIG_PATH"
+	defaultConfigPath = "config/gophermart.yaml"
+	configPathEnvVar  = "GOPHERMART_CONFIG_PATH"
 )
 
 // Load выполняет пошаговую инициализацию, слияние и валидацию полной конфигурации сервиса.
 // Приоритет применения источников (от высшего к низшему):
-// 1. Переменные окружения (Environment Variables)
-// 2. Флаги командной строки (CLI Flags)
+// 1. Явно переданные флаги командной строки (CLI Flags)
+// 2. Переменные окружения (Environment Variables)
 // 3. Значения из файла конфигурации YAML (если путь передан)
 // 4. Дефолтные значения внутренних структур.
 func Load(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 
-	configPathFlag := fs.String("config", "", "path to config file")
+	configPath := defaultConfigPath
+	if v := os.Getenv(configPathEnvVar); v != "" {
+		configPath = v
+	}
+	configPathFlag := fs.String("config", configPath, "path to config file")
 	serverConfig := httpserver.RegisterFlags(fs)
 	dbConfig := postgres.RegisterFlags(fs)
 	accrualConfig := accrualclient.RegisterFlags(fs)
@@ -62,18 +65,26 @@ func Load(args []string) (*Config, error) {
 		return nil, fmt.Errorf("parse flags: %w", err)
 	}
 
-	configPath := *configPathFlag
-	if v := os.Getenv(configPathEnvVar); v != "" {
-		configPath = v
-	}
-
-	for _, p := range []envParser{serverConfig, dbConfig, accrualConfig} {
-		if err := p.ParseEnv(); err != nil {
+	environment := env.ToMap(os.Environ())
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "a":
+			delete(environment, "RUN_ADDRESS")
+		case "d":
+			delete(environment, "DATABASE_URI")
+		case "r":
+			delete(environment, "ACCRUAL_SYSTEM_ADDRESS")
+		case "accrual-timeout":
+			delete(environment, "ACCRUAL_SYSTEM_TIMEOUT")
+		}
+	})
+	for _, p := range []any{serverConfig, dbConfig, accrualConfig} {
+		if err := env.ParseWithOptions(p, env.Options{Environment: environment}); err != nil {
 			return nil, fmt.Errorf("parse env: %w", err)
 		}
 	}
 
-	yc, err := loadYAML(configPath)
+	yc, err := loadYAML(*configPathFlag)
 	if err != nil {
 		return nil, fmt.Errorf("load yaml config: %w", err)
 	}

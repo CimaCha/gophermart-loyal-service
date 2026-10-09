@@ -47,7 +47,7 @@ func New(logger *slog.Logger, balanceService BalanceService) *Handler {
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	userID, err := ctxkeys.GetUserID(r.Context())
 	if err != nil {
-		h.logger.Error("get user id from context failed", "err", err)
+		h.logger.Debug("get user id from context failed", "err", err)
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -62,6 +62,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(balance); err != nil {
 		h.logger.Error("encode balance failed", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
@@ -77,7 +78,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	userID, err := ctxkeys.GetUserID(r.Context())
 	if err != nil {
-		h.logger.Error("get user id from context failed", "err", err)
+		h.logger.Debug("get user id from context failed", "err", err)
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -113,7 +114,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Withdraws(w http.ResponseWriter, r *http.Request) {
 	userID, err := ctxkeys.GetUserID(r.Context())
 	if err != nil {
-		h.logger.Error("get user id from context failed", "err", err)
+		h.logger.Debug("get user id from context failed", "err", err)
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -132,5 +133,6 @@ func (h *Handler) Withdraws(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(withdrawals); err != nil {
 		h.logger.Error("encode withdrawals failed", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }

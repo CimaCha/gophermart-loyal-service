@@ -180,10 +180,15 @@ func (w *Worker) pollLoop(ctx context.Context) {
 	}
 }
 
+// WaitForAccrual ограничивает HTTP-попытки общим RPS и паузой после 429.
+func (w *Worker) WaitForAccrual(ctx context.Context) error {
+	return w.gate.Wait(ctx)
+}
+
 func (w *Worker) fetchAccrual(ctx context.Context, orderNum string) (*accrualclient.ResultResponse, error) {
 	for {
 		// Если словили 429, то остальные воркеры застынут в ожидание на этой строчке
-		if err := w.gate.Wait(ctx); err != nil {
+		if err := w.WaitForAccrual(ctx); err != nil {
 			return nil, err
 		}
 

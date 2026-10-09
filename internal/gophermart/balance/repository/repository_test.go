@@ -267,7 +267,7 @@ func TestBalanceRepository_GetWithdrawals(t *testing.T) {
 		assert.Empty(t, got)
 	})
 
-	t.Run("returns sorted by processed_at ascending", func(t *testing.T) {
+	t.Run("returns sorted by processed_at descending", func(t *testing.T) {
 		cleanDB(t)
 
 		userID := uuid.New()
@@ -277,7 +277,7 @@ func TestBalanceRepository_GetWithdrawals(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		// вставляем в обратном порядке — проверяем, что ORDER BY работает
+		// вставляем от старых к новым — проверяем, что ORDER BY разворачивает порядок
 		_, err = testPool.Exec(ctx,
 			`INSERT INTO transactions (user_uuid, order_num, sum, processed_at) VALUES
 			 ($1, '79927398713', 50, NOW() - INTERVAL '1 hour'),
@@ -289,7 +289,7 @@ func TestBalanceRepository_GetWithdrawals(t *testing.T) {
 		got, err := repo.GetWithdrawals(ctx, userID)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
-		assert.Equal(t, "79927398713", got[0].Order) // старая — первая
-		assert.Equal(t, "12345678903", got[1].Order) // новая — вторая
+		assert.Equal(t, "12345678903", got[0].Order) // новая — первая
+		assert.Equal(t, "79927398713", got[1].Order) // старая — вторая
 	})
 }

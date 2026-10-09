@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -69,7 +71,7 @@ func TestLoad_ConfigPathFromEnv(t *testing.T) {
 	assert.Equal(t, "http://localhost:8081", cfg.Accrual.Address)
 }
 
-func TestLoad_AccrualEnvHasPriorityOverFlag(t *testing.T) {
+func TestLoad_AccrualFlagHasPriorityOverEnv(t *testing.T) {
 	t.Setenv(configPathEnvVar, "")
 
 	path := writeYAML(t, validYAML)
@@ -85,29 +87,16 @@ func TestLoad_AccrualEnvHasPriorityOverFlag(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, "http://env:8081", cfg.Accrual.Address)
+	assert.Equal(t, "http://flag:8081", cfg.Accrual.Address)
 }
 
-func TestLoad_EnvHasPriorityOverFlag(t *testing.T) {
-	t.Setenv(configPathEnvVar, "")
-
+func TestLoad_ConfigFlagHasPriorityOverEnv(t *testing.T) {
 	envConfig := writeYAML(t, validYAML)
-
-	flagConfig := writeYAML(t, `
-worker:
-  polling_interval: 1s
-  worker_count: 999
-  jobs_queue_size: 1
-  target_rps: 1
-`)
-
+	flagConfig := writeYAML(t, strings.Replace(validYAML, "worker_count: 16", "worker_count: 999", 1))
 	t.Setenv(configPathEnvVar, envConfig)
-
 	cfg, err := Load(argsWithConfig(flagConfig))
-
 	require.NoError(t, err)
-
-	assert.Equal(t, 16, cfg.W.WorkerCount)
+	assert.Equal(t, 999, cfg.W.WorkerCount)
 }
 
 func TestLoad_InvalidYAML(t *testing.T) {
@@ -243,4 +232,67 @@ worker:
 		15*time.Second,
 		cfg.W.PollingInterval,
 	)
+}
+
+func TestLoad_FlagAndEnvPriority(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		wantAddr string
+		wantURI  string
+		wantErr  bool
+	}{
+		{name: "explicit flags override env", args: []string{"-a", ":9000", "-d", "postgres://flag"}, wantAddr: ":9000", wantURI: "postgres://flag"},
+		{name: "env used without flags", wantAddr: ":9001", wantURI: "postgres://env"},
+		{name: "only supplied flag overrides env", args: []string{"-a", ":9000"}, wantAddr: ":9000", wantURI: "postgres://env"},
+		{name: "explicit default value overrides env", args: []string{"-a", "localhost:8080"}, wantAddr: "localhost:8080", wantURI: "postgres://env"},
+		{name: "explicit empty flag overrides env", args: []string{"-d", ""}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(configPathEnvVar, writeYAML(t, validYAML))
+			t.Setenv("RUN_ADDRESS", ":9001")
+			t.Setenv("DATABASE_URI", "postgres://env")
+			t.Setenv("ACCRUAL_SYSTEM_ADDRESS", "http://env:8081")
+			t.Setenv("ACCRUAL_SYSTEM_TIMEOUT", "10s")
+			cfg, err := Load(tt.args)
+			if tt.wantErr {
+				require.ErrorContains(t, err, "database URI can't be empty")
+				require.Nil(t, cfg)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantAddr, cfg.Server.Addr)
+			assert.Equal(t, tt.wantURI, cfg.DB.URI)
+			assert.Equal(t, "logs/test", cfg.Logger.Directory)
+		})
+	}
+}
+
+func TestLoad_AccrualTimeoutFlagHasPriorityOverEnv(t *testing.T) {
+	t.Setenv("ACCRUAL_SYSTEM_TIMEOUT", "30s")
+	args := append(argsWithConfig(writeYAML(t, validYAML)), "-accrual-timeout", "3s")
+	cfg, err := Load(args)
+	require.NoError(t, err)
+	assert.Equal(t, 3*time.Second, cfg.Accrual.Timeout)
+}
+
+func TestLoad_InvalidTimeoutEnvPriority(t *testing.T) {
+	for _, withFlag := range []bool{false, true} {
+		t.Run(fmt.Sprintf("flag=%t", withFlag), func(t *testing.T) {
+			t.Setenv("ACCRUAL_SYSTEM_TIMEOUT", "bad-duration")
+			args := argsWithConfig(writeYAML(t, validYAML))
+			if withFlag {
+				args = append(args, "-accrual-timeout", "3s")
+			}
+			cfg, err := Load(args)
+			if withFlag {
+				require.NoError(t, err)
+				assert.Equal(t, 3*time.Second, cfg.Accrual.Timeout)
+			} else {
+				require.ErrorContains(t, err, "bad-duration")
+				require.Nil(t, cfg)
+			}
+		})
+	}
 }
