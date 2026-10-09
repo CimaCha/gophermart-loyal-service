@@ -131,7 +131,7 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, orderNum string, sta
 }
 
 // GetOrders извлекает полный перечень всех заказов, загруженных конкретным пользователем (uid).
-// Результаты сортируются по дате загрузки в хронологическом порядке (от старых к новым).
+// Результаты сортируются по дате загрузки от новых к старым.
 func (r *OrderRepository) GetOrders(ctx context.Context, uid uuid.UUID) ([]model.Order, error) {
 
 	query := `
