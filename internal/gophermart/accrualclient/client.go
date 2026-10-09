@@ -4,6 +4,7 @@ package accrualclient
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -67,6 +68,7 @@ type RateLimitError struct {
 // Client предоставляет HTTP-клиента для взаимодействия с accrual сервисом
 type Client struct {
 	httpClient *resty.Client
+	logger     *slog.Logger
 }
 
 func (s Status) String() string {
@@ -77,16 +79,32 @@ func (e *RateLimitError) Error() string {
 	return fmt.Sprintf("accrual: rate limited, retry after %s", e.RetryAfter)
 }
 
-// New создаёт экземпляр HTTP-клиента
-// baseURL - необходим для того, чтобы клиент знал по какому адресу находится accrual
-// timeout - необходим для возможности прервать запрос, если сервер долго не отвечает клиенту
-func New(cfg Config) *Client {
+// New создаёт HTTP-клиент с тремя повторами запросов при ответах 5xx.
+// cfg задаёт адрес accrual и таймаут одной попытки запроса.
+// logger используется для предупреждений о некорректном Retry-After.
+func New(cfg Config, logger *slog.Logger) *Client {
 	client := resty.New().
 		SetBaseURL(cfg.Address).
 		SetTimeout(cfg.Timeout).
-		SetRetryCount(0)
+		SetRetryCount(3).
+		SetRetryWaitTime(time.Second).
+		SetRetryMaxWaitTime(5 * time.Second).
+		SetRetryDefaultConditions(false).
+		AddRetryConditions(func(resp *resty.Response, err error) bool {
+			return err == nil && resp != nil && resp.StatusCode() >= 500 && resp.StatusCode() < 600
+		})
 
-	return &Client{httpClient: client}
+	return &Client{httpClient: client, logger: logger}
+}
+
+// SetRetryGate подключает общий gate воркера к повторным HTTP-попыткам до запуска клиента.
+func (c *Client) SetRetryGate(wait func(context.Context) error) {
+	c.httpClient.AddRequestMiddleware(func(_ *resty.Client, request *resty.Request) error {
+		if request.Attempt > 1 {
+			return wait(request.Context())
+		}
+		return nil
+	})
 }
 
 // GetOrder - часть интерфейса для взаимодействия с accrual сервисом
@@ -115,7 +133,7 @@ func (c *Client) GetOrder(ctx context.Context, orderNum string) (*ResultResponse
 	case 429:
 		retryAfter := resp.Header().Get("Retry-After")
 		return nil, &RateLimitError{
-			RetryAfter: parseRetryAfter(retryAfter),
+			RetryAfter: parseRetryAfter(retryAfter, c.logger),
 		}
 	default:
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
@@ -123,12 +141,14 @@ func (c *Client) GetOrder(ctx context.Context, orderNum string) (*ResultResponse
 
 }
 
-func parseRetryAfter(h string) time.Duration {
+func parseRetryAfter(h string, logger *slog.Logger) time.Duration {
 	d := defaultRetryAfter
 	if secs, err := strconv.Atoi(h); err == nil && secs >= 0 {
 		d = time.Duration(secs) * time.Second
 	} else if t, err := http.ParseTime(h); err == nil {
 		d = time.Until(t)
+	} else {
+		logger.Warn("invalid accrual Retry-After header, using default delay", "retry_after", h)
 	}
 	return max(d, minRetryAfter)
 }

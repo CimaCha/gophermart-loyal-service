@@ -6,6 +6,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 	"os"
 
@@ -80,7 +81,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 	// Создаём HTTP-сервер и accrual client
 	httpServer := httpserver.New(rootRouter, cfg.Server, log)
-	accrualClient := accrualclient.New(*cfg.Accrual)
+	accrualClient := accrualclient.New(*cfg.Accrual, log)
 
 	// Создаём rate limiter store
 	limiter := ratelimitstore.New(ctx, cfg.RLS, log)
@@ -105,6 +106,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 
 	txBeginner := postgres.NewTxBeginner(pool)
 	orderWorker := worker.New(orderRepo, balanceRepo, accrualClient, txBeginner, log, cfg.W)
+	accrualClient.SetRetryGate(orderWorker.WaitForAccrual)
 
 	userSvc := usersvc.New(userRepo, tokenSvc, passHasher)
 	orderSvc := ordersvc.New(orderRepo, log, orderWorker) // orderWorker реализует OrderNotifier.Notify
@@ -151,10 +153,23 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 // и блокирует текущую горутину на время работы HTTP-сервера до получения сигнала отмены ctx.
 func (a *App) Run(ctx context.Context) error {
 
-	go a.Worker.Run(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
-	if err := a.Server.Run(ctx); err != nil {
-		return fmt.Errorf("server run: %w", err)
+	group.Go(func() error {
+		a.Worker.Run(ctx)
+		return nil
+	})
+
+	group.Go(func() error {
+		if err := a.Server.Run(ctx); err != nil {
+			return fmt.Errorf("server run: %w", err)
+		}
+		return nil
+	})
+
+	err := group.Wait()
+	if err != nil {
+		return err
 	}
 
 	return nil

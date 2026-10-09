@@ -6,6 +6,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 
 	goodsh "github.com/CimaCha/gophermart-loyal-service/internal/accrual/goods/handler"
@@ -123,10 +124,23 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 // на время работы HTTP-сервера до момента получения сигнала остановки через ctx.
 func (a *App) Run(ctx context.Context) error {
 
-	go a.Worker.Run(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
-	if err := a.Server.Run(ctx); err != nil {
-		return fmt.Errorf("server run: %w", err)
+	group.Go(func() error {
+		a.Worker.Run(ctx)
+		return nil
+	})
+
+	group.Go(func() error {
+		if err := a.Server.Run(ctx); err != nil {
+			return fmt.Errorf("server run: %w", err)
+		}
+		return nil
+	})
+
+	err := group.Wait()
+	if err != nil {
+		return err
 	}
 
 	return nil

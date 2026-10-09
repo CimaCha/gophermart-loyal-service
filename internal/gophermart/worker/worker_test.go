@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -364,4 +367,44 @@ func TestWorker_RateLimit_PausesAllWorkers(t *testing.T) {
 		wg.Wait()
 		m.accrual.AssertNumberOfCalls(t, "GetOrder", 4)
 	})
+}
+
+func TestWorker_FetchAccrual_RetriesRespectGate(t *testing.T) {
+	tests := []struct {
+		name      string
+		targetRPS float64
+		pause     bool
+	}{
+		{name: "shared pause", targetRPS: 100, pause: true},
+		{name: "rate limit", targetRPS: 0.17},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			w, _ := newTestWorker(t, func(c *Config) { c.TargetRPS = tt.targetRPS })
+			var calls atomic.Int32
+			ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				if calls.Add(1) == 1 {
+					if tt.pause {
+						w.gate.PauseFor(time.Hour)
+					}
+					rw.WriteHeader(http.StatusInternalServerError)
+				} else {
+					rw.WriteHeader(http.StatusNoContent)
+				}
+			}))
+			defer ts.Close()
+			client := accrualclient.New(accrualclient.Config{Address: ts.URL, Timeout: time.Second}, slog.New(slog.DiscardHandler))
+			client.SetRetryGate(w.WaitForAccrual)
+			w.accrual = client
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_, err := w.fetchAccrual(ctx, "123")
+			require.Equal(t, int32(1), calls.Load(), "retry must pass through shared gate")
+			require.Error(t, err)
+			if tt.pause {
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+			}
+		})
+	}
 }
