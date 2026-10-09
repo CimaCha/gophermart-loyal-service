@@ -10,15 +10,17 @@ import (
 	"strings"
 	"testing"
 
+	mock "github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/handler/mock"
 	"github.com/CimaCha/gophermart-loyal-service/internal/gophermart/user/service"
-	"github.com/stretchr/testify/mock"
+
+	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 var tlsState = tls.ConnectionState{}
 
-func setupHandler(t *testing.T) (*Handler, *MockUserService) {
-	userService := NewMockUserService(t)
+func setupHandler(t *testing.T) (*Handler, *mock.MockUserService) {
+	userService := mock.NewMockUserService(t)
 
 	logger := slog.New(
 		slog.NewTextHandler(io.Discard, nil),
@@ -48,10 +50,10 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serviceMock := NewMockUserService(t)
+			serviceMock := mock.NewMockUserService(t)
 			if tt.wantCalled {
 				serviceMock.EXPECT().
-					CreateUser(mock.Anything, "alice", "secret").
+					CreateUser(testifymock.Anything, "alice", "secret").
 					Return("signed-token", tt.serviceErr)
 			}
 			h := New(slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
@@ -97,10 +99,10 @@ func TestHandler_LoginUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serviceMock := NewMockUserService(t)
+			serviceMock := mock.NewMockUserService(t)
 			if tt.wantCalled {
 				serviceMock.EXPECT().
-					LoginUser(mock.Anything, "alice", "secret").
+					LoginUser(testifymock.Anything, "alice", "secret").
 					Return("signed-token", tt.serviceErr)
 			}
 			h := New(slog.New(slog.NewTextHandler(io.Discard, nil)), serviceMock)
@@ -117,7 +119,7 @@ func TestHandler_RegisterUserTable(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMock  func(*MockUserService)
+		setupMock  func(*mock.MockUserService)
 		wantStatus int
 		wantCookie bool
 		wantSecure bool
@@ -141,10 +143,10 @@ func TestHandler_RegisterUserTable(t *testing.T) {
 		{
 			name: "user already exists",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					CreateUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).
@@ -155,10 +157,10 @@ func TestHandler_RegisterUserTable(t *testing.T) {
 		{
 			name: "internal service error",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					CreateUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).
@@ -169,10 +171,10 @@ func TestHandler_RegisterUserTable(t *testing.T) {
 		{
 			name: "success",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					CreateUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).
@@ -184,10 +186,10 @@ func TestHandler_RegisterUserTable(t *testing.T) {
 		{
 			name: "success https",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					CreateUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).
@@ -245,7 +247,7 @@ func TestHandler_LoginUserTable(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMock  func(*MockUserService)
+		setupMock  func(*mock.MockUserService)
 		wantStatus int
 		wantCookie bool
 	}{
@@ -267,10 +269,10 @@ func TestHandler_LoginUserTable(t *testing.T) {
 		{
 			name: "invalid credentials",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					LoginUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).
@@ -281,10 +283,10 @@ func TestHandler_LoginUserTable(t *testing.T) {
 		{
 			name: "internal error",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					LoginUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).
@@ -295,10 +297,10 @@ func TestHandler_LoginUserTable(t *testing.T) {
 		{
 			name: "success",
 			body: `{"login":"login","password":"password"}`,
-			setupMock: func(m *MockUserService) {
+			setupMock: func(m *mock.MockUserService) {
 				m.EXPECT().
 					LoginUser(
-						mock.Anything,
+						testifymock.Anything,
 						"login",
 						"password",
 					).

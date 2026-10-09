@@ -1,7 +1,7 @@
 all: false
 
 dir: '{{.InterfaceDir}}/mock'
-filename: mocks_{{.InterfaceName}}.gen.go
+filename: 'mocks_{{.InterfaceName | snakecase}}.gen.go'
 force-file-write: true
 formatter: goimports
 
@@ -14,7 +14,7 @@ formatter-options:
     local-prefix: ""
     tab-indent: true
     tab-width: 8
-    
+
 generate: true
 include-auto-generated: false
 log-level: info
