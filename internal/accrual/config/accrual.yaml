@@ -1,0 +1,28 @@
+## LOGGER CONFIG ##
+logger:
+  directory: logs/accrual
+
+  stdout:
+    enabled: true
+    format: text
+    level: info
+
+  files:
+    - name: app
+      enabled: true
+      format: json
+      level: debug
+
+## RATE LIMIT ROUTES CONFIG ##
+rate_limits:
+  cleanup_interval: 30m
+
+  routes:
+    getorders:
+      window: 1m
+      max_requests: 1024
+
+worker:
+  polling_interval: 15s
+  worker_count: 16
+  jobs_queue_size: 1024
