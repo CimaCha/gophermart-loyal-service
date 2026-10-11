@@ -55,7 +55,7 @@ func (h *Handler) RegisterUser(writer http.ResponseWriter, request *http.Request
 	}
 
 	if err := credentials.Validate(); err != nil {
-		h.logger.Info(
+		h.logger.Debug(
 			"failed to validate credentials",
 			"err", err,
 		)
@@ -93,7 +93,7 @@ func (h *Handler) LoginUser(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	if err := credentials.Validate(); err != nil {
-		h.logger.Info(
+		h.logger.Debug(
 			"failed to validate credentials",
 			"err", err,
 		)
@@ -115,13 +115,13 @@ func (h *Handler) writeServiceError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
 	switch {
 	case errors.Is(err, service.ErrUserAlreadyExists):
-		h.logger.Info(
+		h.logger.Debug(
 			"user already exists",
 			"err", err,
 		)
 		status = http.StatusConflict
 	case errors.Is(err, service.ErrInvalidCredentials):
-		h.logger.Info(
+		h.logger.Debug(
 			"invalid credentials",
 			"err", err,
 		)
