@@ -155,7 +155,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(body)
 	if err != nil || len(data) == 0 {
-		h.l.Info(
+		h.l.Debug(
 			"failed to read body",
 			"err", err,
 		)
@@ -186,7 +186,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(499)
 			return
 		case errors.Is(err, ordersvc.ErrInvalidOrderNum):
-			h.l.Info(
+			h.l.Debug(
 				"invalid order number",
 				"order", orderNumStr,
 				"err", err,
@@ -198,7 +198,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		case errors.Is(err, ordersvc.ErrOrderAlreadyCreatedByAnotherUser):
-			h.l.Info(
+			h.l.Debug(
 				"order already uploaded by another user",
 				"err", err,
 			)

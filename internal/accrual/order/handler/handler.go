@@ -156,7 +156,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(499)
 			return
 		case errors.Is(err, ordersvc.ErrInvalidOrderNum):
-			h.logger.Info(
+			h.logger.Debug(
 				"invalid order number",
 				"order", req.OrderNum,
 				"err", err,
